@@ -2,18 +2,20 @@
 
 Provider-aware secret detection for Nigerian fintech, payment infrastructure, and crypto projects.
 
-This project combines a **native detection engine** with existing scanners such as Gitleaks, Semgrep, Nuclei, TruffleHog, and Slither. The native engine is designed to provide deterministic findings, provider context, confidence scoring, JSON output, and SARIF output without requiring external binaries.
+The project combines a **native detection engine** with external scanners such as Gitleaks, Semgrep, Nuclei, TruffleHog, and Slither. The native engine provides deterministic findings, provider context, confidence scoring, JSON/SARIF output, and a validated detector registry without requiring external binaries.
 
-## Phase 1 — Native Detection Engine
+## Current phase — Phase 2: Detector Registry
 
-- Provider-aware rules for Paystack, Flutterwave, Monnify, KoraPay, SeerBit, Interswitch, Remita, OPay, and PalmPay
+- Native provider-aware rules for Paystack, Flutterwave, Monnify, KoraPay, SeerBit, Interswitch, Remita, OPay, and PalmPay
 - Generic cryptographic private-key detection
 - Nigerian-fintech JWT context detection
 - Normalized findings with severity and confidence
 - Secret redaction in terminal/JSON/SARIF output
 - Recursive filesystem scanning with common dependency/build exclusions
-- Python packaging via `pyproject.toml`
-- Regression tests for positive and negative cases
+- Deterministic `DetectorRegistry` with duplicate-ID and metadata validation
+- Provider and detector metadata APIs
+- Modern Python packaging with explicit package discovery
+- Regression tests for detection and registry integrity
 
 ## Quick start
 
@@ -44,12 +46,12 @@ python runner.py /path/to/project
 
 ## Security design
 
-The scanner never prints an entire detected secret. Findings expose a redacted preview and location metadata. Provider-context rules require contextual evidence before producing a finding, which is intended to reduce false positives.
+The scanner never prints an entire detected secret. Findings expose only a redacted preview and location metadata. Provider-context rules require contextual evidence before producing a finding, reducing false positives without attempting live credential verification.
 
 ## Roadmap
 
-1. Native detection engine — **in progress / Phase 1**
-2. Detector registry and signed rule metadata
+1. Native detection engine — **complete**
+2. Detector registry and signed rule metadata — **in progress**
 3. Comprehensive provider corpus and fixture benchmark
 4. Verification adapters with strict opt-in controls
 5. GitHub Actions, pre-commit, Docker, and SARIF hardening
