@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 import math
-import re
 from typing import Iterable
 
 from .models import Finding
@@ -78,7 +77,6 @@ def scan_file(path: Path, root: Path | None = None) -> list[Finding]:
                         path=display_path,
                         line=line_no,
                         column=match_obj.start() + 1,
-                        match=match,
                         redacted_match=_redact(match),
                         message=rule.message,
                     )
