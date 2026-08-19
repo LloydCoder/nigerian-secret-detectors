@@ -9,10 +9,13 @@ description = "Provider-aware Nigerian fintech and crypto secret detection engin
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{name = "LloydCoder"}]
-license = {text = "MIT"}
+license = "MIT"
 
 [project.scripts]
 nigerian-scan = "nigerian_secrets.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["nigerian_secrets*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
