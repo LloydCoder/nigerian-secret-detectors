@@ -5,7 +5,8 @@ import math
 from typing import Iterable
 
 from .models import Finding
-from .rules import RULES, Rule
+from .rules import Rule
+from .registry import REGISTRY
 
 DEFAULT_EXCLUDED_DIRS = {".git", ".venv", "venv", "node_modules", "dist", "build", "coverage"}
 DEFAULT_MAX_FILE_SIZE = 2 * 1024 * 1024
@@ -58,7 +59,7 @@ def scan_file(path: Path, root: Path | None = None) -> list[Finding]:
     findings: list[Finding] = []
     display_path = str(path.relative_to(root)) if root and path.is_relative_to(root) else str(path)
     for line_no, line in enumerate(text.splitlines(), 1):
-        for rule in RULES:
+        for rule in REGISTRY.rules:
             for match_obj in rule.pattern.finditer(line):
                 match = match_obj.group(0)
                 window = line[max(0, match_obj.start() - 180): min(len(line), match_obj.end() + 180)]
