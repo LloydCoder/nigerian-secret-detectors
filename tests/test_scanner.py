@@ -3,14 +3,18 @@ from pathlib import Path
 from nigerian_secrets.scanner import scan
 
 
-def test_paystack_secret_is_detected(tmp_path: Path):
+PAYSTACK_SAMPLE = "sk_test_abcdefghijklmnopqrstuvwxyz123456"
+
+
+def test_paystack_secret_is_detected_and_redacted(tmp_path: Path):
     sample = tmp_path / "config.py"
-    sample.write_text('PAYSTACK_SECRET = "sk_test_abcdefghijklmnopqrstuvwxyz123456"\n')
+    sample.write_text(f'PAYSTACK_SECRET = "{PAYSTACK_SAMPLE}"\n')
 
     findings = scan(tmp_path)
 
-    assert any(item.detector_id == "paystack-secret-key" for item in findings)
-    assert all("sk_test_" not in item.redacted_match[4:] for item in findings)
+    finding = next(item for item in findings if item.detector_id == "paystack-secret-key")
+    assert finding.redacted_match != PAYSTACK_SAMPLE
+    assert PAYSTACK_SAMPLE not in finding.to_dict().__repr__()
 
 
 def test_flutterwave_secret_is_detected(tmp_path: Path):
