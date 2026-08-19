@@ -14,7 +14,6 @@ class Finding:
     path: str
     line: int
     column: int
-    match: str
     redacted_match: str
     message: str
 
