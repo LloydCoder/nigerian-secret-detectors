@@ -71,7 +71,10 @@ def scan_file(path: Path, root: Path | None = None) -> list[Finding]:
                 confidence = _context_score(rule, window, match)
                 if confidence == 0.0:
                     continue
-                if rule.id.endswith("-context") and _entropy(match) < 2.8:
+                # Context rules already require a provider alias plus a credential-shaped
+                # assignment with a minimum length. Entropy is retained for generic tokens,
+                # but is not used as a second gate for provider-specific context rules.
+                if rule.id.endswith("-context") and _entropy(match) < 2.0:
                     continue
                 findings.append(
                     Finding(
