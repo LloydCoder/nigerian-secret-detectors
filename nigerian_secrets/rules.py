@@ -43,9 +43,9 @@ BASE_RULES: tuple[Rule, ...] = (
         "KoraPay credential pattern detected; provider context is required for high confidence.",
     ),
     Rule(
-        "seerbit-secret-key", "seerbit", "fintech", "high",
-        re.compile(r"\b(?:sk|secret)[_-][A-Za-z0-9_-]{24,}\b", re.I),
-        ("seerbit", "publickey", "privatekey", "secretkey"),
+        "seerbit-secret-context", "seerbit", "fintech", "high",
+        re.compile(r"\b(?:secret[_-]?key|api[_-]?key|private[_-]?key|access[_-]?token)\s*[:=]\s*[\"']([A-Za-z0-9+/=_-]{24,})[\"']", re.I),
+        ("seerbit", "publickey", "privatekey", "secretkey", "secret_key"),
         "SeerBit credential-like value detected in provider context.",
     ),
     Rule(
