@@ -1,0 +1,58 @@
+name: Detection Benchmark
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install package
+        run: python -m pip install -e .
+
+      - name: Native benchmark gate
+        run: python -m nigerian_secrets.benchmark --tool native --json | tee native-benchmark.json
+
+      - name: Install Gitleaks 8.30.1 with checksum verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bin"
+          url="https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz"
+          expected="551f98c83d9c4f4e7f9a3cbe2a6e91d5c6d0b6d2f0d3f8a4b6e9b7e5c6f2e4a1"
+          # Pin the release and verify the downloaded artifact against the official release checksum file.
+          curl -fsSL "$url" -o "$RUNNER_TEMP/gitleaks.tgz"
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt" -o "$RUNNER_TEMP/gitleaks.sha256"
+          grep 'gitleaks_8.30.1_linux_x64.tar.gz$' "$RUNNER_TEMP/gitleaks.sha256" > "$RUNNER_TEMP/gitleaks.expected"
+          (cd "$RUNNER_TEMP" && sha256sum -c gitleaks.expected)
+          tar -xzf "$RUNNER_TEMP/gitleaks.tgz" -C "$RUNNER_TEMP/bin" gitleaks
+          chmod +x "$RUNNER_TEMP/bin/gitleaks"
+          "$RUNNER_TEMP/bin/gitleaks" version
+
+      - name: Gitleaks benchmark
+        env:
+          PATH: ${{ runner.temp }}/bin:${{ env.PATH }}
+        run: python -m nigerian_secrets.benchmark --tool gitleaks --json | tee gitleaks-benchmark.json
+
+      - name: TruffleHog benchmark
+        run: python -m nigerian_secrets.benchmark --tool trufflehog-docker --json | tee trufflehog-benchmark.json
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detection-benchmark-${{ github.sha }}
+          path: '*-benchmark.json'
+          if-no-files-found: error
+          retention-days: 30
