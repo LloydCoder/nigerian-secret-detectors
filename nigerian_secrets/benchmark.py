@@ -38,40 +38,10 @@ def load_cases(path: Path = CORPUS) -> list[Case]:
     return [Case(**json.loads(line)) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def _native_detect(case: Case) -> bool:
-    with tempfile.TemporaryDirectory() as directory:
-        target = Path(directory) / "fixture.txt"
-        target.write_text(case.text, encoding="utf-8")
-        return bool(scan(target))
-
-
-def _external_detect(tool: str, case: Case) -> bool:
-    with tempfile.TemporaryDirectory() as directory:
-        target = Path(directory) / "fixture.txt"
-        target.write_text(case.text, encoding="utf-8")
-        if tool == "gitleaks":
-            binary = shutil.which(tool)
-            if not binary:
-                raise RuntimeError(f"{tool} is not installed")
-            command = [binary, "dir", directory, "--no-banner", "--exit-code", "1", "--redact"]
-        elif tool == "trufflehog-docker":
-            command = [
-                "docker", "run", "--rm", "-v", f"{directory}:/repo:ro", TRUFFLEHOG_IMAGE,
-                "filesystem", "/repo", "--no-update", "--no-color", "--json",
-            ]
-        else:
-            raise ValueError(f"unsupported tool: {tool}")
-        result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
-        if tool == "gitleaks":
-            return result.returncode == 1
-        return any('"DetectorName"' in line or '"DetectorType"' in line for line in result.stdout.splitlines())
-
-
-def run(tool: str, cases: list[Case]) -> Metrics:
-    detector = _native_detect if tool == "native" else lambda case: _external_detect(tool, case)
+def _score(cases: list[Case], detected_ids: set[str], tool: str) -> Metrics:
     tp = fp = tn = fn = 0
     for case in cases:
-        detected = detector(case)
+        detected = case.id in detected_ids
         if case.expected and detected:
             tp += 1
         elif case.expected and not detected:
@@ -84,6 +54,53 @@ def run(tool: str, cases: list[Case]) -> Metrics:
     recall = tp / (tp + fn) if tp + fn else 0.0
     f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
     return Metrics(tool, len(cases), tp, fp, tn, fn, round(precision, 4), round(recall, 4), round(f1, 4))
+
+
+def _native_metrics(cases: list[Case]) -> Metrics:
+    detected: set[str] = set()
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        for case in cases:
+            (root / f"{case.id}.txt").write_text(case.text, encoding="utf-8")
+        for finding in scan(root):
+            detected.add(Path(finding.path).stem)
+    return _score(cases, detected, "native")
+
+
+def _external_metrics(tool: str, cases: list[Case]) -> Metrics:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        for case in cases:
+            (root / f"{case.id}.txt").write_text(case.text, encoding="utf-8")
+        if tool == "gitleaks":
+            binary = shutil.which(tool)
+            if not binary:
+                raise RuntimeError(f"{tool} is not installed")
+            report = root / "gitleaks.json"
+            command = [binary, "dir", str(root), "--no-banner", "--exit-code", "0", "--report-format", "json", "--report-path", str(report), "--redact"]
+            subprocess.run(command, capture_output=True, text=True, timeout=120, check=False)
+            detected = set()
+            if report.exists():
+                for finding in json.loads(report.read_text(encoding="utf-8") or "[]"):
+                    file_name = Path(str(finding.get("File", ""))).name
+                    if file_name.endswith(".txt"):
+                        detected.add(Path(file_name).stem)
+            return _score(cases, detected, tool)
+        if tool == "trufflehog-docker":
+            command = [
+                "docker", "run", "--rm", "-v", f"{root}:/repo:ro", TRUFFLEHOG_IMAGE,
+                "filesystem", "/repo", "--no-update", "--no-color", "--json",
+            ]
+            result = subprocess.run(command, capture_output=True, text=True, timeout=120, check=False)
+            detected = {case.id for case in cases if f"{case.id}.txt" in result.stdout}
+            return _score(cases, detected, tool)
+        raise ValueError(f"unsupported tool: {tool}")
+
+
+def run(tool: str, cases: list[Case]) -> Metrics:
+    if tool == "native":
+        return _native_metrics(cases)
+    return _external_metrics(tool, cases)
 
 
 def main() -> int:
