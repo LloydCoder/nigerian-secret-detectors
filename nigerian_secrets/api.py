@@ -37,11 +37,14 @@ def _policy_from_payload(value: object) -> ScanPolicy:
         return ScanPolicy()
     if not isinstance(value, dict):
         raise ValueError("policy must be a JSON object")
+    excluded = value.get("excluded_dirs", list(ScanPolicy().excluded_dirs))
+    if not isinstance(excluded, list) or not all(isinstance(item, str) and item for item in excluded):
+        raise ValueError("excluded_dirs must be a list of non-empty strings")
     return ScanPolicy(
         fail_on=str(value.get("fail_on", "high")),
         max_file_size=int(value.get("max_file_size", 2 * 1024 * 1024)),
         max_files=int(value.get("max_files", 10_000)),
-        excluded_dirs=frozenset(value.get("excluded_dirs", ScanPolicy().excluded_dirs)),
+        excluded_dirs=frozenset(excluded),
     )
 
 
@@ -69,7 +72,7 @@ class Handler(BaseHTTPRequestHandler):
     def _write(self, status: int, payload: object) -> None:
         body = json.dumps(payload, separators=(",", ":")).encode()
         self.send_response(status)
-        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
@@ -107,6 +110,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if urlparse(self.path).path != "/v1/scan":
             return self._write(404, {"error": "not_found"})
+        content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+        if content_type != "application/json":
+            return self._write(415, {"error": "content_type_must_be_application_json"})
         try:
             length_header = self.headers.get("Content-Length")
             if length_header is None:
@@ -130,6 +136,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._write(200, {"findings": [f.to_dict() for f in findings], "count": len(findings)})
         except (TypeError, ValueError, OSError, json.JSONDecodeError, TimeoutError) as exc:
             return self._write(400, {"error": str(exc)})
+
+    def do_PUT(self) -> None:  # noqa: N802
+        self._write(405, {"error": "method_not_allowed"})
+
+    def do_DELETE(self) -> None:  # noqa: N802
+        self._write(405, {"error": "method_not_allowed"})
+
+    def do_PATCH(self) -> None:  # noqa: N802
+        self._write(405, {"error": "method_not_allowed"})
 
     def log_message(self, *_args: object) -> None:
         return
