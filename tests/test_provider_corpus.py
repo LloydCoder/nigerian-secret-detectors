@@ -5,7 +5,6 @@ from nigerian_secrets.registry import REGISTRY
 from nigerian_secrets.scanner import scan
 
 FIXTURE_VALUE = "qW3eR7tY9uI2oP4aS6dF8gH0jK1lZ5xC"
-EXACT_PROVIDERS = {"paystack", "flutterwave", "monnify", "korapay", "seerbit", "interswitch", "remita", "opay", "palmpay"}
 
 
 def _write_case(path: Path, provider: str, value: str = FIXTURE_VALUE) -> None:
@@ -26,7 +25,7 @@ def _write_case(path: Path, provider: str, value: str = FIXTURE_VALUE) -> None:
     elif provider in {"opay", "palmpay"}:
         content = f'{provider} api_key = "{value}"\n'
     else:
-        content = f'# provider context: {provider}\nAPI_KEY = "{value}"\n'
+        content = f'# provider context: {provider} API_KEY = "{value}"\n'
     path.write_text(content, encoding="utf-8")
 
 
