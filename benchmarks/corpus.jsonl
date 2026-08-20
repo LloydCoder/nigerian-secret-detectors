@@ -1,21 +1,21 @@
-{"id":"paystack-test","expected":true,"text":"PAYSTACK_SECRET=sk_test_abcdefghijklmnopqrstuvwxyz1234567890"}
-{"id":"flutterwave","expected":true,"text":"FLUTTERWAVE_KEY=FLWSECK-abcdefghijklmnopqrstuvwxyz1234567890"}
+{"id":"paystack-test","expected":true,"text":"PAYSTACK_SECRET=\"sk_test_abcdefghijklmnopqrstuvwxyz1234567890\""}
+{"id":"flutterwave","expected":true,"text":"FLUTTERWAVE_KEY=\"FLWSECK-abcdefghijklmnopqrstuvwxyz1234567890\""}
 {"id":"monnify","expected":true,"text":"monnify MK_LIVE_abcdefghijklmnop1234567890"}
-{"id":"korapay","expected":true,"text":"korapay secret=pk_test_abcdefghijklmnopqrstuvwxyz1234567890"}
-{"id":"seerbit","expected":true,"text":"seerbit secret_key=abcdefghijklmnopqrstuvwxyz123456789012345678"}
-{"id":"interswitch","expected":true,"text":"interswitch macKey=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
-{"id":"remita","expected":true,"text":"remita api_key=abcdefghijklmnopqrstuvwxyz123456789012345678"}
-{"id":"opay","expected":true,"text":"opay api_key=abcdefghijklmnopqrstuvwxyz123456789012345678"}
-{"id":"palmpay","expected":true,"text":"palmpay secret=abcdefghijklmnopqrstuvwxyz123456789012345678"}
-{"id":"squad","expected":true,"text":"squad api_key=abcdefghijklmnopqrstuvwxyz123456789012345678"}
-{"id":"payaza","expected":true,"text":"payaza client_secret=abcdefghijklmnopqrstuvwxyz123456789012345678"}
-{"id":"klasha","expected":true,"text":"klasha access_token=abcdefghijklmnopqrstuvwxyz123456789012345678"}
-{"id":"sudo","expected":true,"text":"sudo private_key=abcdefghijklmnopqrstuvwxyz123456789012345678"}
-{"id":"anchor","expected":true,"text":"anchor client_secret=abcdefghijklmnopqrstuvwxyz123456789012345678"}
-{"id":"mono","expected":true,"text":"mono api_key=abcdefghijklmnopqrstuvwxyz123456789012345678"}
-{"id":"paga","expected":true,"text":"paga access_token=abcdefghijklmnopqrstuvwxyz123456789012345678"}
-{"id":"carbon","expected":true,"text":"carbon secret_key=abcdefghijklmnopqrstuvwxyz123456789012345678"}
-{"id":"jwt","expected":true,"text":"paystack access_token=eyJabcdefghijklmnopqrstuvwxyz123456.abcdefghijklmno.abcdefghijklmno"}
+{"id":"korapay","expected":true,"text":"korapay secret=\"pk_test_abcdefghijklmnopqrstuvwxyz1234567890\""}
+{"id":"seerbit","expected":true,"text":"seerbit secret_key=\"abcdefghijklmnopqrstuvwxyz123456789012345678\""}
+{"id":"interswitch","expected":true,"text":"interswitch macKey=\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\""}
+{"id":"remita","expected":true,"text":"remita api_key=\"abcdefghijklmnopqrstuvwxyz123456789012345678\""}
+{"id":"opay","expected":true,"text":"opay api_key=\"abcdefghijklmnopqrstuvwxyz123456789012345678\""}
+{"id":"palmpay","expected":true,"text":"palmpay secret=\"abcdefghijklmnopqrstuvwxyz123456789012345678\""}
+{"id":"squad","expected":true,"text":"squad api_key=\"abcdefghijklmnopqrstuvwxyz123456789012345678\""}
+{"id":"payaza","expected":true,"text":"payaza client_secret=\"abcdefghijklmnopqrstuvwxyz123456789012345678\""}
+{"id":"klasha","expected":true,"text":"klasha access_token=\"abcdefghijklmnopqrstuvwxyz123456789012345678\""}
+{"id":"sudo","expected":true,"text":"sudo private_key=\"abcdefghijklmnopqrstuvwxyz123456789012345678\""}
+{"id":"anchor","expected":true,"text":"anchor client_secret=\"abcdefghijklmnopqrstuvwxyz123456789012345678\""}
+{"id":"mono","expected":true,"text":"mono api_key=\"abcdefghijklmnopqrstuvwxyz123456789012345678\""}
+{"id":"paga","expected":true,"text":"paga access_token=\"abcdefghijklmnopqrstuvwxyz123456789012345678\""}
+{"id":"carbon","expected":true,"text":"carbon secret_key=\"abcdefghijklmnopqrstuvwxyz123456789012345678\""}
+{"id":"jwt","expected":true,"text":"paystack access_token=\"eyJabcdefghijklmnopqrstuvwxyz123456.abcdefghijklmno.abcdefghijklmno\""}
 {"id":"private-key","expected":true,"text":"-----BEGIN PRIVATE KEY-----\nsynthetic fixture\n-----END PRIVATE KEY-----"}
 {"id":"provider-name-only","expected":false,"text":"paystack integration documentation and public API reference"}
 {"id":"ordinary-token","expected":false,"text":"token=not-a-secret-value-with-enough-length-to-look-real"}
