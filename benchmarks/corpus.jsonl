@@ -15,7 +15,7 @@
 {"id":"mono","expected":true,"text":"mono api_key=\"abcdefghijklmnopqrstuvwxyz123456789012345678\""}
 {"id":"paga","expected":true,"text":"paga access_token=\"abcdefghijklmnopqrstuvwxyz123456789012345678\""}
 {"id":"carbon","expected":true,"text":"carbon secret_key=\"abcdefghijklmnopqrstuvwxyz123456789012345678\""}
-{"id":"jwt","expected":true,"text":"paystack access_token=\"eyJabcdefghijklmnopqrstuvwxyz123456.abcdefghijklmno.abcdefghijklmno\""}
+{"id":"jwt","expected":true,"text":"paystack access_token=\"eyJ12345678901234567890.abcdefghij.klmnopqrst\""}
 {"id":"private-key","expected":true,"text":"-----BEGIN PRIVATE KEY-----\nsynthetic fixture\n-----END PRIVATE KEY-----"}
 {"id":"provider-name-only","expected":false,"text":"paystack integration documentation and public API reference"}
 {"id":"ordinary-token","expected":false,"text":"token=not-a-secret-value-with-enough-length-to-look-real"}
