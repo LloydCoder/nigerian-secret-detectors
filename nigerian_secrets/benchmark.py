@@ -38,6 +38,17 @@ def load_cases(path: Path = CORPUS) -> list[Case]:
     return [Case(**json.loads(line)) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
+def native_detected_ids(cases: list[Case]) -> set[str]:
+    detected: set[str] = set()
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        for case in cases:
+            (root / f"{case.id}.txt").write_text(case.text, encoding="utf-8")
+        for finding in scan(root):
+            detected.add(Path(finding.path).stem)
+    return detected
+
+
 def _score(cases: list[Case], detected_ids: set[str], tool: str) -> Metrics:
     tp = fp = tn = fn = 0
     for case in cases:
@@ -57,14 +68,7 @@ def _score(cases: list[Case], detected_ids: set[str], tool: str) -> Metrics:
 
 
 def _native_metrics(cases: list[Case]) -> Metrics:
-    detected: set[str] = set()
-    with tempfile.TemporaryDirectory() as directory:
-        root = Path(directory)
-        for case in cases:
-            (root / f"{case.id}.txt").write_text(case.text, encoding="utf-8")
-        for finding in scan(root):
-            detected.add(Path(finding.path).stem)
-    return _score(cases, detected, "native")
+    return _score(cases, native_detected_ids(cases), "native")
 
 
 def _external_metrics(tool: str, cases: list[Case]) -> Metrics:
