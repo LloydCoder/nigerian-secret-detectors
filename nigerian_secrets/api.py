@@ -26,7 +26,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/healthz":
             return self._write(200, {"status": "ok"})
         if path == "/v1/providers":
-            return self._write(200, {"providers": sorted(PROVIDERS)})
+            return self._write(200, {"providers": [p.id for p in PROVIDERS]})
         if path == "/v1/detectors":
             return self._write(200, {"detectors": [r.id for r in REGISTRY.rules]})
         return self._write(404, {"error": "not_found"})
@@ -34,10 +34,10 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         if urlparse(self.path).path != "/v1/scan":
             return self._write(404, {"error": "not_found"})
-        length = int(self.headers.get("Content-Length", "0"))
-        if length > 64 * 1024:
-            return self._write(413, {"error": "request_too_large"})
         try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if length > 64 * 1024:
+                return self._write(413, {"error": "request_too_large"})
             payload = json.loads(self.rfile.read(length) or b"{}")
             target = payload["target"]
             if not isinstance(target, str) or not target:
