@@ -10,6 +10,7 @@ from .registry import REGISTRY
 
 DEFAULT_EXCLUDED_DIRS = {".git", ".venv", "venv", "node_modules", "dist", "build", "coverage"}
 DEFAULT_MAX_FILE_SIZE = 2 * 1024 * 1024
+DEFAULT_MAX_FILES = 10_000
 
 
 def _entropy(value: str) -> float:
@@ -26,16 +27,20 @@ def _redact(value: str) -> str:
     return f"{value[:4]}…{value[-4:]}"
 
 
-def _iter_files(target: Path, excluded_dirs: set[str], max_file_size: int) -> Iterable[Path]:
+def _iter_files(target: Path, excluded_dirs: set[str], max_file_size: int, max_files: int) -> Iterable[Path]:
     if target.is_file():
-        if target.stat().st_size <= max_file_size:
+        if not target.is_symlink() and target.stat().st_size <= max_file_size:
             yield target
         return
+    count = 0
     for path in target.rglob("*"):
-        if not path.is_file() or path.stat().st_size > max_file_size:
+        if count >= max_files:
+            return
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > max_file_size:
             continue
         if any(part in excluded_dirs for part in path.parts):
             continue
+        count += 1
         yield path
 
 
@@ -66,7 +71,10 @@ def scan_file(path: Path, root: Path | None = None) -> list[Finding]:
                 confidence = _context_score(rule, window, match)
                 if confidence == 0.0:
                     continue
-                if rule.id.endswith("-context") and _entropy(match) < 2.8:
+                # Context rules already require a provider alias plus a credential-shaped
+                # assignment with a minimum length. Entropy is retained for generic tokens,
+                # but is not used as a second gate for provider-specific context rules.
+                if rule.id.endswith("-context") and _entropy(match) < 2.0:
                     continue
                 findings.append(
                     Finding(
@@ -85,7 +93,15 @@ def scan_file(path: Path, root: Path | None = None) -> list[Finding]:
     return findings
 
 
-def scan(target: str | Path, *, excluded_dirs: set[str] | None = None, max_file_size: int = DEFAULT_MAX_FILE_SIZE) -> list[Finding]:
+def scan(
+    target: str | Path,
+    *,
+    excluded_dirs: set[str] | None = None,
+    max_file_size: int = DEFAULT_MAX_FILE_SIZE,
+    max_files: int = DEFAULT_MAX_FILES,
+) -> list[Finding]:
+    if max_file_size <= 0 or max_files <= 0:
+        raise ValueError("max_file_size and max_files must be positive")
     path = Path(target).expanduser().resolve()
     if not path.exists():
         raise FileNotFoundError(path)
@@ -93,7 +109,7 @@ def scan(target: str | Path, *, excluded_dirs: set[str] | None = None, max_file_
     root = path if path.is_dir() else path.parent
     findings: list[Finding] = []
     seen: set[tuple[str, int, int, str]] = set()
-    for file_path in _iter_files(path, excluded, max_file_size):
+    for file_path in _iter_files(path, excluded, max_file_size, max_files):
         for finding in scan_file(file_path, root):
             key = (finding.path, finding.line, finding.column, finding.detector_id)
             if key not in seen:

@@ -1,0 +1,5 @@
+# Security-sensitive code requires explicit owner review.
+* @LloydCoder
+/.github/ @LloydCoder
+/nigerian_secrets/ @LloydCoder
+/detectors/ @LloydCoder
