@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from .policy import load_policy
+from .policy import ScanPolicy
 from .providers import PROVIDERS
 from .registry import REGISTRY
 from .scanner import scan
@@ -17,6 +17,7 @@ SCAN_ROOT = Path(os.environ.get("NIGERIAN_SCAN_ROOT", ".")).expanduser().resolve
 MAX_BODY = 64 * 1024
 RATE_LIMIT = 60
 RATE_WINDOW = 60.0
+MAX_RATE_CLIENTS = 4096
 API_KEY = os.environ.get("NIGERIAN_API_KEY")
 _RATE_STATE: dict[str, list[float]] = {}
 
@@ -31,12 +32,28 @@ def _safe_target(value: str) -> Path:
     return target
 
 
+def _policy_from_payload(value: object) -> ScanPolicy:
+    if value is None:
+        return ScanPolicy()
+    if not isinstance(value, dict):
+        raise ValueError("policy must be a JSON object")
+    return ScanPolicy(
+        fail_on=str(value.get("fail_on", "high")),
+        max_file_size=int(value.get("max_file_size", 2 * 1024 * 1024)),
+        max_files=int(value.get("max_files", 10_000)),
+        excluded_dirs=frozenset(value.get("excluded_dirs", ScanPolicy().excluded_dirs)),
+    )
+
+
 def _allow_request(client: str) -> bool:
     now = time.monotonic()
     recent = [stamp for stamp in _RATE_STATE.get(client, []) if now - stamp < RATE_WINDOW]
     if len(recent) >= RATE_LIMIT:
         _RATE_STATE[client] = recent
         return False
+    if client not in _RATE_STATE and len(_RATE_STATE) >= MAX_RATE_CLIENTS:
+        oldest = min(_RATE_STATE, key=lambda key: _RATE_STATE[key][-1])
+        del _RATE_STATE[oldest]
     recent.append(now)
     _RATE_STATE[client] = recent
     return True
@@ -44,6 +61,10 @@ def _allow_request(client: str) -> bool:
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "NigerianSecretsAPI/0.4"
+
+    def setup(self) -> None:
+        super().setup()
+        self.connection.settimeout(10)
 
     def _write(self, status: int, payload: object) -> None:
         body = json.dumps(payload, separators=(",", ":")).encode()
@@ -61,7 +82,6 @@ class Handler(BaseHTTPRequestHandler):
         if not _allow_request(client):
             self._write(429, {"error": "rate_limited"})
             return False
-        # Localhost is intentionally safe-by-default. Remote binding requires an API key.
         if client in {"127.0.0.1", "::1"} and API_KEY is None:
             return True
         supplied = self.headers.get("X-API-Key", "")
@@ -100,7 +120,7 @@ class Handler(BaseHTTPRequestHandler):
             target = payload.get("target")
             if not isinstance(target, str) or not target:
                 raise ValueError("target must be a non-empty relative path")
-            policy = load_policy(payload.get("policy")) if payload.get("policy") else load_policy(None)
+            policy = _policy_from_payload(payload.get("policy"))
             findings = scan(
                 _safe_target(target),
                 excluded_dirs=set(policy.excluded_dirs),
@@ -108,7 +128,7 @@ class Handler(BaseHTTPRequestHandler):
                 max_files=policy.max_files,
             )
             return self._write(200, {"findings": [f.to_dict() for f in findings], "count": len(findings)})
-        except (KeyError, TypeError, ValueError, OSError, json.JSONDecodeError) as exc:
+        except (TypeError, ValueError, OSError, json.JSONDecodeError, TimeoutError) as exc:
             return self._write(400, {"error": str(exc)})
 
     def log_message(self, *_args: object) -> None:
