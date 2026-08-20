@@ -4,7 +4,7 @@ import argparse
 import json
 import sys
 
-from .scanner import scan
+from .scanner import DEFAULT_EXCLUDED_DIRS, scan
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -15,6 +15,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("target", help="File or directory to scan")
     parser.add_argument("--format", choices=("text", "json", "sarif"), default="text")
     parser.add_argument("--fail-on", choices=("none", "high", "critical"), default="high")
+    parser.add_argument(
+        "--exclude-dir",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="Directory name to exclude; may be repeated.",
+    )
     return parser
 
 
@@ -48,7 +55,8 @@ def _sarif(findings):
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        findings = scan(args.target)
+        excluded = DEFAULT_EXCLUDED_DIRS | set(args.exclude_dir)
+        findings = scan(args.target, excluded_dirs=excluded)
     except FileNotFoundError as exc:
         print(f"error: target does not exist: {exc}", file=sys.stderr)
         return 2
