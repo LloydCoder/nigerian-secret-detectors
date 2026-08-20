@@ -1,0 +1,8 @@
+repos:
+  - repo: local
+    hooks:
+      - id: nigerian-secret-scan
+        name: Nigerian Secret Scan
+        entry: nigerian-scan . --fail-on high --format text
+        language: system
+        pass_filenames: false
