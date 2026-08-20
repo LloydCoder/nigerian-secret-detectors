@@ -80,16 +80,12 @@ BASE_RULES: tuple[Rule, ...] = (
     ),
     Rule(
         "nigerian-provider-jwt", "nigerian-fintech", "token", "high",
-        re.compile(r"\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
+        re.compile(r"eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
         ("paystack", "flutterwave", "remita", "interswitch", "monnify", "korapay", "opay", "palmpay", "api_token", "access_token"),
         "JWT-like token detected in Nigerian financial provider context.",
     ),
 )
 
-# Context rules cover providers for which we do not yet have an independently
-# established provider-specific token grammar. They require both provider
-# context and a credential-shaped assignment, preventing provider-name-only
-# matches. Dedicated rules above take precedence when exact formats are known.
 _CONTEXT_RULES: tuple[Rule, ...] = tuple(
     Rule(
         f"{provider.id}-credential-context",
