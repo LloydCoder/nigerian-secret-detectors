@@ -1,12 +1,23 @@
 from __future__ import annotations
 
 import json
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import urlparse
 
 from .providers import PROVIDERS
 from .registry import REGISTRY
 from .scanner import scan
+
+SCAN_ROOT = Path(os.environ.get("NIGERIAN_SCAN_ROOT", ".")).expanduser().resolve()
+
+
+def _safe_target(value: str) -> Path:
+    target = (SCAN_ROOT / value).resolve() if not Path(value).is_absolute() else Path(value).resolve()
+    if not target.is_relative_to(SCAN_ROOT):
+        raise ValueError("target must remain inside NIGERIAN_SCAN_ROOT")
+    return target
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -42,7 +53,7 @@ class Handler(BaseHTTPRequestHandler):
             target = payload["target"]
             if not isinstance(target, str) or not target:
                 raise ValueError("target must be a non-empty path")
-            findings = scan(target)
+            findings = scan(_safe_target(target))
             return self._write(200, {"findings": [f.__dict__ for f in findings], "count": len(findings)})
         except (KeyError, TypeError, ValueError, OSError, json.JSONDecodeError) as exc:
             return self._write(400, {"error": str(exc)})
