@@ -27,7 +27,7 @@ jobs:
       - name: Checksums
         run: sha256sum dist/* sbom.spdx.json > SHA256SUMS
       - name: Attest distribution
-        uses: actions/attest-build-provenance@v4.1.1
+        uses: actions/attest-build-provenance@v4.2.2
         with:
           subject-path: "dist/*"
       - name: Publish release artifacts
