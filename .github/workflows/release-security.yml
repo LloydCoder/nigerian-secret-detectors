@@ -31,7 +31,7 @@ jobs:
         with:
           subject-path: "dist/*"
       - name: Publish release artifacts
-        uses: softprops/action-gh-release@v3.0.2
+        uses: softprops/action-gh-release@v3.0.3
         with:
           files: |
             dist/*
