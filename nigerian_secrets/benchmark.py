@@ -37,22 +37,17 @@ class Case:
         alias = provider.aliases[0] if provider else "paystack"
         if self.fixture == "provider":
             if self.provider == "paystack":
-                secret = "sk_live_" + value
-                assignment = f'API_SECRET = "{secret}"'
+                assignment = f'API_SECRET = "sk_live_{value}"'
             elif self.provider == "flutterwave":
-                secret = "FLWSECK-" + value
-                assignment = f'API_SECRET = "{secret}"'
+                assignment = f'API_SECRET = "FLWSECK-{value}"'
             elif self.provider == "monnify":
-                secret = "MK_LIVE_" + value
-                assignment = f'API_SECRET = "{secret}"'
+                assignment = f'API_SECRET = "MK_LIVE_{value}"'
             elif self.provider == "korapay":
-                secret = "sk_live_" + value
-                assignment = f'API_SECRET = "{secret}"'
+                assignment = f'API_SECRET = "sk_live_{value}"'
             elif self.provider == "interswitch":
                 assignment = f'macKey = "{seed[:64]}"'
             else:
-                secret = value + value
-                assignment = f'API_SECRET = "{secret}"'
+                assignment = f'API_SECRET = "{value + value}"'
             return f"# {alias} integration\n{assignment}"
         if self.fixture == "private-key":
             return "-----BEGIN RSA PRIVATE KEY-----\nSYNTHETIC-BENCHMARK\n-----END RSA PRIVATE KEY-----"
@@ -92,18 +87,15 @@ class Metrics:
 
 
 def _expand_seed_cases(seeds: list[Case]) -> list[Case]:
-    """Expand a small, reviewable seed catalog into a deterministic 660-case corpus."""
     cases: list[Case] = []
     for provider_index, provider in enumerate(PROVIDERS):
         for variant in range(10):
-            language = LANGUAGES[(provider_index * 3 + variant) % len(LANGUAGES)]
-            cases.append(Case(f"pos-{provider.id}-{variant:02d}", True, provider.id, "regression", "provider", language))
+            cases.append(Case(f"pos-{provider.id}-{variant:02d}", True, provider.id, "regression", "provider", LANGUAGES[(provider_index * 3 + variant) % len(LANGUAGES)]))
     for variant in range(60):
-        fixture = "private-key" if variant < 20 else "jwt" if variant < 40 else "paystack"
-        cases.append(Case(f"pos-generic-{variant:03d}", True, "generic", "regression", fixture, "text"))
+        cases.append(Case(f"pos-generic-{variant:03d}", True, "generic", "regression", "private-key" if variant < 20 else "jwt" if variant < 40 else "paystack", "text"))
     for variant in range(300):
         cases.append(Case(f"neg-{variant:03d}", False, "none", "regression", NEGATIVE_FIXTURES[variant % len(NEGATIVE_FIXTURES)], "text"))
-    if seeds and not {seed.id for seed in seeds}:
+    if not seeds:
         raise ValueError("benchmark seed catalog is empty")
     return cases
 
@@ -118,7 +110,7 @@ def load_cases(path: Path = CORPUS) -> list[Case]:
     return cases
 
 
-def native_detected_ids(cases: list[Case]) -> tuple[set[str], float, int]:
+def _native_scan(cases: list[Case]) -> tuple[set[str], float, int]:
     detected: set[str] = set()
     total_bytes = 0
     started = perf_counter()
@@ -131,6 +123,11 @@ def native_detected_ids(cases: list[Case]) -> tuple[set[str], float, int]:
         for finding in scan(root):
             detected.add(Path(finding.path).stem)
     return detected, perf_counter() - started, total_bytes
+
+
+def native_detected_ids(cases: list[Case]) -> set[str]:
+    """Compatibility helper returning only detected case IDs."""
+    return _native_scan(cases)[0]
 
 
 def _score(cases: list[Case], detected_ids: set[str], tool: str, elapsed: float = 0.0, total_bytes: int = 0) -> Metrics:
@@ -148,7 +145,7 @@ def _score(cases: list[Case], detected_ids: set[str], tool: str, elapsed: float 
 
 
 def _native_metrics(cases: list[Case]) -> Metrics:
-    detected, elapsed, total_bytes = native_detected_ids(cases)
+    detected, elapsed, total_bytes = _native_scan(cases)
     return _score(cases, detected, "native", elapsed, total_bytes)
 
 
