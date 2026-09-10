@@ -16,3 +16,5 @@ Release gates:
 Tagged releases publish the Python distribution, SBOM, and checksum manifest. GitHub Actions are pinned to immutable commit SHAs.
 
 Current package version: `0.5.0`.
+
+Before publishing `0.5.0`, the final candidate must pass the complete CI/security/benchmark suite from a clean runner. A failed or stale workflow result must never be treated as release evidence.
