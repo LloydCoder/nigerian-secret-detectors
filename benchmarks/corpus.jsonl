@@ -35,9 +35,9 @@
 {"id":"pos-seerbit-02","expected":true,"provider":"seerbit","suite":"regression","fixture":"provider","language":"typescript","adversarial":false}
 {"id":"pos-seerbit-03","expected":true,"provider":"seerbit","suite":"regression","fixture":"provider","language":"go","adversarial":false}
 {"id":"pos-seerbit-04","expected":true,"provider":"seerbit","suite":"regression","fixture":"provider","language":"php","adversarial":false}
-{"id":"pos-seerbit-05","expected":true,"provider":"seerbit","suite":"regression","fixture":"java","adversarial":false}
-{"id":"pos-seerbit-06","expected":true,"provider":"seerbit","suite":"regression","fixture":"ruby","adversarial":false}
-{"id":"pos-seerbit-07","expected":true,"provider":"seerbit","suite":"regression","fixture":"rust","adversarial":false}
+{"id":"pos-seerbit-05","expected":true,"provider":"seerbit","suite":"regression","fixture":"provider","language":"java","adversarial":false}
+{"id":"pos-seerbit-06","expected":true,"provider":"seerbit","suite":"regression","fixture":"provider","language":"ruby","adversarial":false}
+{"id":"pos-seerbit-07","expected":true,"provider":"seerbit","suite":"regression","fixture":"provider","language":"rust","adversarial":false}
 {"id":"pos-interswitch-00","expected":true,"provider":"interswitch","suite":"regression","fixture":"provider","language":"python","adversarial":false}
 {"id":"pos-interswitch-01","expected":true,"provider":"interswitch","suite":"regression","fixture":"provider","language":"javascript","adversarial":false}
 {"id":"pos-interswitch-02","expected":true,"provider":"interswitch","suite":"regression","fixture":"provider","language":"typescript","adversarial":false}
