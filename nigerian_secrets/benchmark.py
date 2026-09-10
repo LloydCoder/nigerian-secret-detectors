@@ -47,7 +47,7 @@ class Case:
             elif self.provider == "interswitch":
                 assignment = f'macKey = "{seed[:64]}"'
             else:
-                assignment = f'API_SECRET = "{value + value}"'
+                assignment = f'API_KEY = "{value + value}"'
             return f"# {alias} integration\n{assignment}"
         if self.fixture == "private-key":
             return "-----BEGIN RSA PRIVATE KEY-----\nSYNTHETIC-BENCHMARK\n-----END RSA PRIVATE KEY-----"
