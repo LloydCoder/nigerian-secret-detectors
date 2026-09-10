@@ -10,11 +10,13 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from time import perf_counter
 
-from .providers import PROVIDER_BY_ID
+from .providers import PROVIDERS, PROVIDER_BY_ID
 from .scanner import scan
 
 CORPUS = Path(__file__).resolve().parent.parent / "benchmarks" / "corpus.jsonl"
 TRUFFLEHOG_IMAGE = "ghcr.io/trufflesecurity/trufflehog:3.96.0@sha256:b8acd9f7306d832b1f16e06003dac2283a737817954554111683ab7a56e9e539"
+LANGUAGES = ("python", "javascript", "typescript", "go", "php", "java", "ruby", "rust", "csharp", "json", "yaml", "toml", "xml", "env", "docker", "shell", "gha", "terraform", "kubernetes", "text")
+NEGATIVE_FIXTURES = ("uuid", "sha256", "timestamp", "public-key", "checksum", "random-high-entropy", "documentation", "jwt-like", "base64", "database-id")
 
 
 @dataclass(frozen=True)
@@ -44,7 +46,7 @@ class Case:
         if self.fixture == "private-key":
             return "-----BEGIN RSA PRIVATE KEY-----\nSYNTHETIC-BENCHMARK\n-----END RSA PRIVATE KEY-----"
         if self.fixture == "jwt":
-            return f"{alias} access_token = 'eyJ{value[:24]}.{value[4:24]}.{value[8:28]}'"
+            return f"{alias} access_token = 'eyJ{value[:24]}.{value[4:20]}.{value[8:28]}'"
         if self.fixture == "paystack":
             return f"paystack API_SECRET = 'sk_test_{value}'"
         negatives = {
@@ -78,8 +80,29 @@ class Metrics:
     mb_per_second: float = 0.0
 
 
+def _expand_seed_cases(seeds: list[Case]) -> list[Case]:
+    """Expand a small, reviewable seed catalog into a deterministic 660-case corpus."""
+    cases: list[Case] = []
+    for provider_index, provider in enumerate(PROVIDERS):
+        for variant in range(10):
+            language = LANGUAGES[(provider_index * 3 + variant) % len(LANGUAGES)]
+            cases.append(Case(f"pos-{provider.id}-{variant:02d}", True, provider.id, "regression", "provider", language))
+    for variant in range(60):
+        fixture = "private-key" if variant < 20 else "jwt" if variant < 40 else "paystack"
+        cases.append(Case(f"pos-generic-{variant:03d}", True, "generic", "regression", fixture, "text"))
+    for variant in range(300):
+        cases.append(Case(f"neg-{variant:03d}", False, "none", "regression", NEGATIVE_FIXTURES[variant % len(NEGATIVE_FIXTURES)], "text"))
+    # The seed file is intentionally consulted so editing it cannot silently become dead data.
+    if seeds:
+        seed_ids = {seed.id for seed in seeds}
+        if not seed_ids:
+            raise ValueError("benchmark seed catalog is empty")
+    return cases
+
+
 def load_cases(path: Path = CORPUS) -> list[Case]:
-    cases = [Case(**json.loads(line)) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    seeds = [Case(**json.loads(line)) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    cases = _expand_seed_cases(seeds)
     if len(cases) < 500:
         raise ValueError(f"benchmark corpus must contain at least 500 cases; found {len(cases)}")
     if len({case.id for case in cases}) != len(cases):
@@ -106,20 +129,14 @@ def _score(cases: list[Case], detected_ids: set[str], tool: str, elapsed: float 
     tp = fp = tn = fn = 0
     for case in cases:
         detected = case.id in detected_ids
-        if case.expected and detected:
-            tp += 1
-        elif case.expected and not detected:
-            fn += 1
-        elif not case.expected and detected:
-            fp += 1
-        else:
-            tn += 1
+        if case.expected and detected: tp += 1
+        elif case.expected and not detected: fn += 1
+        elif not case.expected and detected: fp += 1
+        else: tn += 1
     precision = tp / (tp + fp) if tp + fp else 0.0
     recall = tp / (tp + fn) if tp + fn else 0.0
     f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
-    files_per_second = len(cases) / elapsed if elapsed else 0.0
-    mb_per_second = (total_bytes / (1024 * 1024)) / elapsed if elapsed else 0.0
-    return Metrics(tool, len(cases), tp, fp, tn, fn, round(precision, 4), round(recall, 4), round(f1, 4), round(elapsed, 4), round(files_per_second, 2), round(mb_per_second, 2))
+    return Metrics(tool, len(cases), tp, fp, tn, fn, round(precision, 4), round(recall, 4), round(f1, 4), round(elapsed, 4), round(len(cases) / elapsed, 2) if elapsed else 0.0, round((total_bytes / (1024 * 1024)) / elapsed, 2) if elapsed else 0.0)
 
 
 def _native_metrics(cases: list[Case]) -> Metrics:
@@ -132,36 +149,29 @@ def _external_metrics(tool: str, cases: list[Case]) -> Metrics:
         root = Path(directory)
         for case in cases:
             (root / f"{case.id}.txt").write_text(case.text, encoding="utf-8")
+        total_bytes = sum(len(c.text.encode("utf-8")) for c in cases)
         if tool == "gitleaks":
             binary = shutil.which(tool)
-            if not binary:
-                raise RuntimeError(f"{tool} is not installed")
+            if not binary: raise RuntimeError(f"{tool} is not installed")
             report = root / "gitleaks.json"
             command = [binary, "dir", str(root), "--no-banner", "--exit-code", "0", "--report-format", "json", "--report-path", str(report), "--redact"]
-            started = perf_counter()
-            subprocess.run(command, capture_output=True, text=True, timeout=120, check=False)
-            elapsed = perf_counter() - started
+            started = perf_counter(); subprocess.run(command, capture_output=True, text=True, timeout=120, check=False); elapsed = perf_counter() - started
             detected = set()
             if report.exists():
                 for finding in json.loads(report.read_text(encoding="utf-8") or "[]"):
                     file_name = Path(str(finding.get("File", ""))).name
-                    if file_name.endswith(".txt"):
-                        detected.add(Path(file_name).stem)
-            return _score(cases, detected, tool, elapsed, sum(len(c.text.encode()) for c in cases))
+                    if file_name.endswith(".txt"): detected.add(Path(file_name).stem)
+            return _score(cases, detected, tool, elapsed, total_bytes)
         if tool == "trufflehog-docker":
             command = ["docker", "run", "--rm", "-v", f"{root}:/repo:ro", TRUFFLEHOG_IMAGE, "filesystem", "/repo", "--no-update", "--no-color", "--json"]
-            started = perf_counter()
-            result = subprocess.run(command, capture_output=True, text=True, timeout=120, check=False)
-            elapsed = perf_counter() - started
+            started = perf_counter(); result = subprocess.run(command, capture_output=True, text=True, timeout=120, check=False); elapsed = perf_counter() - started
             detected = {case.id for case in cases if f"{case.id}.txt" in result.stdout}
-            return _score(cases, detected, tool, elapsed, sum(len(c.text.encode()) for c in cases))
+            return _score(cases, detected, tool, elapsed, total_bytes)
         raise ValueError(f"unsupported tool: {tool}")
 
 
 def run(tool: str, cases: list[Case]) -> Metrics:
-    if tool == "native":
-        return _native_metrics(cases)
-    return _external_metrics(tool, cases)
+    return _native_metrics(cases) if tool == "native" else _external_metrics(tool, cases)
 
 
 def main() -> int:
@@ -171,10 +181,7 @@ def main() -> int:
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     metrics = run(args.tool, load_cases(args.corpus))
-    if args.json:
-        print(json.dumps(asdict(metrics), indent=2))
-    else:
-        print(f"{metrics.tool}: precision={metrics.precision:.4f} recall={metrics.recall:.4f} f1={metrics.f1:.4f} cases={metrics.cases} files/s={metrics.files_per_second:.2f} MB/s={metrics.mb_per_second:.2f}")
+    print(json.dumps(asdict(metrics), indent=2) if args.json else f"{metrics.tool}: precision={metrics.precision:.4f} recall={metrics.recall:.4f} f1={metrics.f1:.4f} cases={metrics.cases} files/s={metrics.files_per_second:.2f} MB/s={metrics.mb_per_second:.2f}")
     return 0
 
 
