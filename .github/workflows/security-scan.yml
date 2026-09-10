@@ -12,7 +12,7 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -21,6 +21,11 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e .
+      - run: python -m compileall -q nigerian_secrets
+      - name: Dependency audit
+        run: |
+          python -m pip install pip-audit
+          python -m pip_audit --strict
       - name: Scan native source
         run: nigerian-scan nigerian_secrets --format sarif --fail-on high > nigerian-secret-results.sarif
       - name: Validate SARIF structure
