@@ -36,13 +36,24 @@ class Case:
         provider = PROVIDER_BY_ID.get(self.provider)
         alias = provider.aliases[0] if provider else "paystack"
         if self.fixture == "provider":
-            if self.provider == "paystack": secret = "sk_live_" + value
-            elif self.provider == "flutterwave": secret = "FLWSECK-" + value
-            elif self.provider == "monnify": secret = "MK_LIVE_" + value
-            elif self.provider == "korapay": secret = "sk_live_" + value
-            elif self.provider == "interswitch": secret = (value * 3)[:64]
-            else: secret = value + value
-            return f"# {alias} integration\nAPI_SECRET = \"{secret}\""
+            if self.provider == "paystack":
+                secret = "sk_live_" + value
+                assignment = f'API_SECRET = "{secret}"'
+            elif self.provider == "flutterwave":
+                secret = "FLWSECK-" + value
+                assignment = f'API_SECRET = "{secret}"'
+            elif self.provider == "monnify":
+                secret = "MK_LIVE_" + value
+                assignment = f'API_SECRET = "{secret}"'
+            elif self.provider == "korapay":
+                secret = "sk_live_" + value
+                assignment = f'API_SECRET = "{secret}"'
+            elif self.provider == "interswitch":
+                assignment = f'macKey = "{seed[:64]}"'
+            else:
+                secret = value + value
+                assignment = f'API_SECRET = "{secret}"'
+            return f"# {alias} integration\n{assignment}"
         if self.fixture == "private-key":
             return "-----BEGIN RSA PRIVATE KEY-----\nSYNTHETIC-BENCHMARK\n-----END RSA PRIVATE KEY-----"
         if self.fixture == "jwt":
@@ -56,7 +67,7 @@ class Case:
             "public-key": "public_key = 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ'",
             "checksum": "checksum = '" + "deadbeef" * 8 + "'",
             "random-high-entropy": f"random = '{value * 2}'",
-            "documentation": "documentation = 'sk_live_example_not_a_credential'",
+            "documentation": "documentation = 'sk_live_example'",
             "jwt-like": f"jwt_shape = 'eyJ{value[:24]}.{value[4:20]}'",
             "base64": f"base64 = '{value * 2}'",
             "database-id": "database_id = '12345678901234567890123456789012'",
@@ -92,11 +103,8 @@ def _expand_seed_cases(seeds: list[Case]) -> list[Case]:
         cases.append(Case(f"pos-generic-{variant:03d}", True, "generic", "regression", fixture, "text"))
     for variant in range(300):
         cases.append(Case(f"neg-{variant:03d}", False, "none", "regression", NEGATIVE_FIXTURES[variant % len(NEGATIVE_FIXTURES)], "text"))
-    # The seed file is intentionally consulted so editing it cannot silently become dead data.
-    if seeds:
-        seed_ids = {seed.id for seed in seeds}
-        if not seed_ids:
-            raise ValueError("benchmark seed catalog is empty")
+    if seeds and not {seed.id for seed in seeds}:
+        raise ValueError("benchmark seed catalog is empty")
     return cases
 
 
