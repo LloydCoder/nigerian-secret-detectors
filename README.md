@@ -17,7 +17,7 @@ The project combines a native detection engine with established scanner integrat
 - Local API: **implemented; remote binding requires API key plus TLS certificate/key**
 - SARIF: **2.1.0 output with schema reference and regression tests**
 - Supply-chain controls: **SBOM, checksums, provenance, checksum-pinned external scanner binary, immutable GitHub Action pins**
-- Container: **non-root, no-login user, read-only/capability-drop smoke-tested in CI**
+- Container: **non-root, no-login user, read-only/capability-drop smoke-tested, Trivy vulnerability scan and container SBOM in CI**
 
 The benchmark is a controlled synthetic regression/coverage corpus. It is not a real-world recall estimate and contains no live credentials. Synthetic credential material is generated only at benchmark runtime so repository secret-scanning systems do not receive credential-shaped fixtures.
 
@@ -101,7 +101,7 @@ SARIF output targets version 2.1.0 and includes stable rule IDs, provider/severi
 
 ## Release and supply-chain security
 
-Tagged releases build Python distributions, generate an SPDX 2.3 SBOM with SHA-256 file hashes, publish artifact checksums, and generate GitHub build-provenance attestations. GitHub Actions are pinned to immutable commit SHAs. The Gitleaks benchmark binary is verified against its published checksum and the TruffleHog benchmark image is pinned by digest.
+Tagged releases build Python distributions, generate an SPDX 2.3 SBOM with SHA-256 file hashes, publish artifact checksums, and generate GitHub build-provenance attestations. GitHub Actions are pinned to immutable commit SHAs. The Gitleaks benchmark binary is verified against its published checksum and the TruffleHog benchmark image is pinned by digest. CI also scans the built container for unfixed critical vulnerabilities and emits a CycloneDX container SBOM.
 
 See `SECURITY.md` and `docs/RELEASE.md` for the security and release model.
 
@@ -127,7 +127,7 @@ Recommended hardened invocation for a read-only scan:
 docker run --rm --read-only --cap-drop=ALL nigerian-secret-detectors /scan-target --format json --fail-on none
 ```
 
-The image runs as UID 10001 with a non-login shell. Container vulnerability scanning and image provenance should be performed by the deployment environment.
+The image runs as UID 10001 with a non-login shell. CI performs a Trivy vulnerability scan and emits a CycloneDX SBOM; production deployments should apply equivalent image-policy controls.
 
 ## License
 
