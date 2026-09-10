@@ -11,7 +11,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -26,3 +26,9 @@ jobs:
       - run: python -m pip install -e . pytest
       - run: python -m pytest -q
       - run: python -m nigerian_secrets.cli . --format json --fail-on none > /tmp/scan.json
+      - name: Container build
+        if: matrix.python-version == '3.13'
+        run: docker build --tag nigerian-secret-detectors:ci .
+      - name: Container smoke test
+        if: matrix.python-version == '3.13'
+        run: docker run --rm --read-only --cap-drop=ALL nigerian-secret-detectors:ci . --format json --fail-on none
