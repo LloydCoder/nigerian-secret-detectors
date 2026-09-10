@@ -19,6 +19,7 @@ classifiers = [
 
 [project.scripts]
 nigerian-scan = "nigerian_secrets.cli:main"
+nigerian-git-scan = "nigerian_secrets.git_cli:main"
 nigerian-secrets-api = "nigerian_secrets.api:serve"
 
 [tool.setuptools.packages.find]
