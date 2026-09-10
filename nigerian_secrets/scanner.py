@@ -4,6 +4,7 @@ from pathlib import Path
 import math
 from typing import Iterable
 
+from .fingerprint import fingerprint
 from .models import Finding
 from .rules import Rule
 from .registry import REGISTRY
@@ -64,8 +65,13 @@ def _context_score(rule: Rule, window: str, match: str) -> float:
     return score if hits else 0.0
 
 
-def scan_text(text: str, *, display_path: str = "<memory>") -> list[Finding]:
-    """Scan already-decoded text without persisting or logging its contents."""
+def scan_text(
+    text: str,
+    *,
+    display_path: str = "<memory>",
+    fingerprint_key: bytes | str | None = None,
+) -> list[Finding]:
+    """Scan decoded text without persisting or logging its contents."""
     findings: list[Finding] = []
     for line_no, line in enumerate(text.splitlines(), 1):
         for rule in REGISTRY.rules:
@@ -89,12 +95,18 @@ def scan_text(text: str, *, display_path: str = "<memory>") -> list[Finding]:
                         column=match_obj.start() + 1,
                         redacted_match=_redact(match),
                         message=rule.message,
+                        fingerprint=fingerprint(match, fingerprint_key) if fingerprint_key else None,
                     )
                 )
     return findings
 
 
-def scan_file(path: Path, root: Path | None = None) -> list[Finding]:
+def scan_file(
+    path: Path,
+    root: Path | None = None,
+    *,
+    fingerprint_key: bytes | str | None = None,
+) -> list[Finding]:
     try:
         raw = path.read_bytes()
         if b"\x00" in raw:
@@ -104,7 +116,7 @@ def scan_file(path: Path, root: Path | None = None) -> list[Finding]:
         return []
 
     display_path = str(path.relative_to(root)) if root and path.is_relative_to(root) else str(path)
-    return scan_text(text, display_path=display_path)
+    return scan_text(text, display_path=display_path, fingerprint_key=fingerprint_key)
 
 
 def scan(
@@ -113,6 +125,7 @@ def scan(
     excluded_dirs: set[str] | None = None,
     max_file_size: int = DEFAULT_MAX_FILE_SIZE,
     max_files: int = DEFAULT_MAX_FILES,
+    fingerprint_key: bytes | str | None = None,
 ) -> list[Finding]:
     if max_file_size <= 0 or max_files <= 0:
         raise ValueError("max_file_size and max_files must be positive")
@@ -124,7 +137,7 @@ def scan(
     findings: list[Finding] = []
     seen: set[tuple[str, int, int, str]] = set()
     for file_path in _iter_files(path, excluded, max_file_size, max_files):
-        for finding in scan_file(file_path, root):
+        for finding in scan_file(file_path, root, fingerprint_key=fingerprint_key):
             key = (finding.path, finding.line, finding.column, finding.detector_id)
             if key not in seen:
                 findings.append(finding)
