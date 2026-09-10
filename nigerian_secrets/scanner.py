@@ -12,6 +12,7 @@ from .registry import REGISTRY
 DEFAULT_EXCLUDED_DIRS = {".git", ".venv", "venv", "node_modules", "dist", "build", "coverage"}
 DEFAULT_MAX_FILE_SIZE = 2 * 1024 * 1024
 DEFAULT_MAX_FILES = 10_000
+CONTEXT_CHARS = 180
 
 
 def _entropy(value: str) -> float:
@@ -69,14 +70,15 @@ def scan_text(text: str, *, display_path: str = "<memory>", fingerprint_key: byt
     lines = text.splitlines()
     for line_index, line in enumerate(lines):
         line_no = line_index + 1
-        context_start = max(0, line_index - 1)
-        context_end = min(len(lines), line_index + 2)
-        context_lines = lines[context_start:context_end]
-        context = "\n".join(context_lines)
+        previous = lines[line_index - 1][-CONTEXT_CHARS:] if line_index else ""
+        following = lines[line_index + 1][:CONTEXT_CHARS] if line_index + 1 < len(lines) else ""
         for rule in REGISTRY.rules:
             for match_obj in rule.pattern.finditer(line):
                 match = match_obj.group(0)
-                confidence = _context_score(rule, context, match)
+                current_start = max(0, match_obj.start() - CONTEXT_CHARS)
+                current_end = min(len(line), match_obj.end() + CONTEXT_CHARS)
+                window = f"{previous}\n{line[current_start:current_end]}\n{following}"
+                confidence = _context_score(rule, window, match)
                 if confidence == 0.0:
                     continue
                 if rule.detection_type == "provider-context" and _entropy(match) < 2.0:
