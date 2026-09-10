@@ -66,12 +66,17 @@ def _context_score(rule: Rule, window: str, match: str) -> float:
 
 def scan_text(text: str, *, display_path: str = "<memory>", fingerprint_key: bytes | str | None = None) -> list[Finding]:
     findings: list[Finding] = []
-    for line_no, line in enumerate(text.splitlines(), 1):
+    lines = text.splitlines()
+    for line_index, line in enumerate(lines):
+        line_no = line_index + 1
+        context_start = max(0, line_index - 1)
+        context_end = min(len(lines), line_index + 2)
+        context_lines = lines[context_start:context_end]
+        context = "\n".join(context_lines)
         for rule in REGISTRY.rules:
             for match_obj in rule.pattern.finditer(line):
                 match = match_obj.group(0)
-                window = line[max(0, match_obj.start() - 180): min(len(line), match_obj.end() + 180)]
-                confidence = _context_score(rule, window, match)
+                confidence = _context_score(rule, context, match)
                 if confidence == 0.0:
                     continue
                 if rule.detection_type == "provider-context" and _entropy(match) < 2.0:
