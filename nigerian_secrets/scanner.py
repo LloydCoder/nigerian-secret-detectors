@@ -23,7 +23,6 @@ def _entropy(value: str) -> float:
 
 
 def _redact(value: str) -> str:
-    """Return non-secret metadata only; never expose secret prefixes/suffixes."""
     return f"<redacted:{len(value)}>"
 
 
@@ -65,13 +64,7 @@ def _context_score(rule: Rule, window: str, match: str) -> float:
     return score if hits else 0.0
 
 
-def scan_text(
-    text: str,
-    *,
-    display_path: str = "<memory>",
-    fingerprint_key: bytes | str | None = None,
-) -> list[Finding]:
-    """Scan decoded text without persisting or logging its contents."""
+def scan_text(text: str, *, display_path: str = "<memory>", fingerprint_key: bytes | str | None = None) -> list[Finding]:
     findings: list[Finding] = []
     for line_no, line in enumerate(text.splitlines(), 1):
         for rule in REGISTRY.rules:
@@ -83,6 +76,7 @@ def scan_text(
                     continue
                 if rule.detection_type == "provider-context" and _entropy(match) < 2.0:
                     continue
+                secret_value = match_obj.group(1) if match_obj.lastindex else match
                 findings.append(
                     Finding(
                         detector_id=rule.id,
@@ -95,18 +89,13 @@ def scan_text(
                         column=match_obj.start() + 1,
                         redacted_match=_redact(match),
                         message=rule.message,
-                        fingerprint=fingerprint(match, fingerprint_key) if fingerprint_key else None,
+                        fingerprint=fingerprint(secret_value, fingerprint_key) if fingerprint_key else None,
                     )
                 )
     return findings
 
 
-def scan_file(
-    path: Path,
-    root: Path | None = None,
-    *,
-    fingerprint_key: bytes | str | None = None,
-) -> list[Finding]:
+def scan_file(path: Path, root: Path | None = None, *, fingerprint_key: bytes | str | None = None) -> list[Finding]:
     try:
         raw = path.read_bytes()
         if b"\x00" in raw:
@@ -114,19 +103,11 @@ def scan_file(
         text = raw.decode("utf-8", errors="ignore")
     except OSError:
         return []
-
     display_path = str(path.relative_to(root)) if root and path.is_relative_to(root) else str(path)
     return scan_text(text, display_path=display_path, fingerprint_key=fingerprint_key)
 
 
-def scan(
-    target: str | Path,
-    *,
-    excluded_dirs: set[str] | None = None,
-    max_file_size: int = DEFAULT_MAX_FILE_SIZE,
-    max_files: int = DEFAULT_MAX_FILES,
-    fingerprint_key: bytes | str | None = None,
-) -> list[Finding]:
+def scan(target: str | Path, *, excluded_dirs: set[str] | None = None, max_file_size: int = DEFAULT_MAX_FILE_SIZE, max_files: int = DEFAULT_MAX_FILES, fingerprint_key: bytes | str | None = None) -> list[Finding]:
     if max_file_size <= 0 or max_files <= 0:
         raise ValueError("max_file_size and max_files must be positive")
     path = Path(target).expanduser().resolve()
