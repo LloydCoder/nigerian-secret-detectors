@@ -10,7 +10,6 @@ from nigerian_secrets.sarif import SARIF_SCHEMA, to_sarif
 from nigerian_secrets.scanner import scan
 from nigerian_secrets.verification import VerificationRequest, VerificationResult, verify
 
-
 SYNTHETIC = "sk_test_abcdefghijklmnopqrstuvwxyz123456"
 
 
@@ -54,8 +53,10 @@ def test_detector_metadata_exposes_detection_type():
 
 
 def test_fingerprint_is_keyed_and_stable():
-    assert fingerprint(SYNTHETIC, "test-key") == fingerprint(SYNTHETIC, "test-key")
-    assert fingerprint(SYNTHETIC, "test-key") != fingerprint(SYNTHETIC, "other-key")
+    assert fingerprint(SYNTHETIC, "test-key-0123456789abcdef") == fingerprint(SYNTHETIC, "test-key-0123456789abcdef")
+    assert fingerprint(SYNTHETIC, "test-key-0123456789abcdef") != fingerprint(SYNTHETIC, "other-key-0123456789abcdef")
+    with pytest.raises(ValueError):
+        fingerprint(SYNTHETIC, "too-short")
 
 
 def test_verification_unknown_is_not_invalid():
@@ -76,5 +77,4 @@ def test_sarif_is_versioned_and_redacted(tmp_path: Path):
     payload = to_sarif(scan(tmp_path))
     assert payload["version"] == "2.1.0"
     assert payload["$schema"] == SARIF_SCHEMA
-    rendered = json.dumps(payload)
-    assert SYNTHETIC not in rendered
+    assert SYNTHETIC not in json.dumps(payload)
