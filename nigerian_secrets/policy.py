@@ -21,10 +21,10 @@ class ScanPolicy:
     def __post_init__(self) -> None:
         if self.fail_on not in {"low", "medium", "high", "critical", "none"}:
             raise ValueError("fail_on must be low, medium, high, critical, or none")
-        if self.max_file_size <= 0 or self.max_file_size > MAX_ALLOWED_FILE_SIZE:
-            raise ValueError(f"max_file_size must be between 1 and {MAX_ALLOWED_FILE_SIZE}")
-        if self.max_files <= 0 or self.max_files > MAX_ALLOWED_FILES:
-            raise ValueError(f"max_files must be between 1 and {MAX_ALLOWED_FILES}")
+        if isinstance(self.max_file_size, bool) or not isinstance(self.max_file_size, int) or not 0 < self.max_file_size <= MAX_ALLOWED_FILE_SIZE:
+            raise ValueError(f"max_file_size must be an integer between 1 and {MAX_ALLOWED_FILE_SIZE}")
+        if isinstance(self.max_files, bool) or not isinstance(self.max_files, int) or not 0 < self.max_files <= MAX_ALLOWED_FILES:
+            raise ValueError(f"max_files must be an integer between 1 and {MAX_ALLOWED_FILES}")
         if not all(isinstance(item, str) and item for item in self.excluded_dirs):
             raise ValueError("excluded_dirs must contain non-empty strings")
 
@@ -44,10 +44,19 @@ class ScanPolicy:
         excluded = data.get("excluded_dirs", list(DEFAULT_EXCLUDED_DIRS))
         if not isinstance(excluded, list) or not all(isinstance(item, str) and item for item in excluded):
             raise ValueError("excluded_dirs must be a list of non-empty strings")
+        fail_on = data.get("fail_on", "high")
+        max_file_size = data.get("max_file_size", 2 * 1024 * 1024)
+        max_files = data.get("max_files", 10_000)
+        if not isinstance(fail_on, str):
+            raise ValueError("fail_on must be a string")
+        if isinstance(max_file_size, bool) or not isinstance(max_file_size, int):
+            raise ValueError("max_file_size must be an integer")
+        if isinstance(max_files, bool) or not isinstance(max_files, int):
+            raise ValueError("max_files must be an integer")
         return cls(
-            fail_on=str(data.get("fail_on", "high")),
-            max_file_size=int(data.get("max_file_size", 2 * 1024 * 1024)),
-            max_files=int(data.get("max_files", 10_000)),
+            fail_on=fail_on,
+            max_file_size=max_file_size,
+            max_files=max_files,
             excluded_dirs=frozenset(excluded),
         )
 
