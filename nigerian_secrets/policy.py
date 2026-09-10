@@ -7,6 +7,8 @@ from typing import Mapping, Any
 
 
 DEFAULT_EXCLUDED_DIRS = frozenset({".git", ".venv", "venv", "node_modules", "dist", "build", "coverage"})
+MAX_ALLOWED_FILE_SIZE = 50 * 1024 * 1024
+MAX_ALLOWED_FILES = 100_000
 
 
 @dataclass(frozen=True)
@@ -19,8 +21,10 @@ class ScanPolicy:
     def __post_init__(self) -> None:
         if self.fail_on not in {"low", "medium", "high", "critical", "none"}:
             raise ValueError("fail_on must be low, medium, high, critical, or none")
-        if self.max_file_size <= 0 or self.max_files <= 0:
-            raise ValueError("max_file_size and max_files must be positive")
+        if self.max_file_size <= 0 or self.max_file_size > MAX_ALLOWED_FILE_SIZE:
+            raise ValueError(f"max_file_size must be between 1 and {MAX_ALLOWED_FILE_SIZE}")
+        if self.max_files <= 0 or self.max_files > MAX_ALLOWED_FILES:
+            raise ValueError(f"max_files must be between 1 and {MAX_ALLOWED_FILES}")
         if not all(isinstance(item, str) and item for item in self.excluded_dirs):
             raise ValueError("excluded_dirs must contain non-empty strings")
 
