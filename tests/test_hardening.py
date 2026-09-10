@@ -35,6 +35,12 @@ def test_findings_are_deterministically_sorted(tmp_path: Path):
     assert [item.path for item in first] == sorted(item.path for item in first)
 
 
+def test_adjacent_provider_context_is_used(tmp_path: Path):
+    (tmp_path / "anchor.py").write_text('# anchor integration\nAPI_KEY = "abcdefghijklmnopqrstuvwxyz1234567890"\n', encoding="utf-8")
+    findings = scan(tmp_path)
+    assert any(item.provider == "anchor" for item in findings)
+
+
 def test_policy_semantics_are_shared():
     policy = ScanPolicy.from_mapping({"max_files": 42, "max_file_size": 4096, "fail_on": "medium", "excluded_dirs": [".git"]})
     assert policy.fail_on == "medium"
