@@ -35,6 +35,14 @@ def _safe_target(value: str) -> Path:
     return target
 
 
+def _policy_from_payload(value: object) -> ScanPolicy:
+    if value is None:
+        return ScanPolicy()
+    if not isinstance(value, dict):
+        raise ValueError("policy must be a JSON object")
+    return ScanPolicy.from_mapping(value)
+
+
 def _allow_request(client: str) -> bool:
     now = time.monotonic()
     recent = [stamp for stamp in _RATE_STATE.get(client, []) if now - stamp < RATE_WINDOW]
@@ -118,7 +126,7 @@ class Handler(BaseHTTPRequestHandler):
             target = payload.get("target")
             if not isinstance(target, str) or not target:
                 raise ValueError("target must be a non-empty relative path")
-            policy = ScanPolicy.from_mapping(payload.get("policy"))
+            policy = _policy_from_payload(payload.get("policy"))
             findings = scan(
                 _safe_target(target),
                 excluded_dirs=set(policy.excluded_dirs),
