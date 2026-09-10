@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import json
+from typing import Mapping, Any
 
 
 DEFAULT_EXCLUDED_DIRS = frozenset({".git", ".venv", "venv", "node_modules", "dist", "build", "coverage"})
@@ -20,6 +21,8 @@ class ScanPolicy:
             raise ValueError("fail_on must be low, medium, high, critical, or none")
         if self.max_file_size <= 0 or self.max_files <= 0:
             raise ValueError("max_file_size and max_files must be positive")
+        if not all(isinstance(item, str) and item for item in self.excluded_dirs):
+            raise ValueError("excluded_dirs must contain non-empty strings")
 
     def should_fail(self, findings: list[object]) -> bool:
         if self.fail_on == "none":
@@ -28,17 +31,25 @@ class ScanPolicy:
         threshold = order[self.fail_on]
         return any(order.get(getattr(f, "severity", "low"), 1) >= threshold for f in findings)
 
+    @classmethod
+    def from_mapping(cls, data: Mapping[str, Any] | None) -> "ScanPolicy":
+        if data is None:
+            return cls()
+        if not isinstance(data, Mapping):
+            raise ValueError("policy must be an object")
+        excluded = data.get("excluded_dirs", list(DEFAULT_EXCLUDED_DIRS))
+        if not isinstance(excluded, list) or not all(isinstance(item, str) and item for item in excluded):
+            raise ValueError("excluded_dirs must be a list of non-empty strings")
+        return cls(
+            fail_on=str(data.get("fail_on", "high")),
+            max_file_size=int(data.get("max_file_size", 2 * 1024 * 1024)),
+            max_files=int(data.get("max_files", 10_000)),
+            excluded_dirs=frozenset(excluded),
+        )
+
 
 def load_policy(path: str | Path | None) -> ScanPolicy:
     if path is None:
         return ScanPolicy()
     data = json.loads(Path(path).read_text(encoding="utf-8"))
-    excluded = data.get("excluded_dirs", list(DEFAULT_EXCLUDED_DIRS))
-    if not isinstance(excluded, list) or not all(isinstance(item, str) and item for item in excluded):
-        raise ValueError("excluded_dirs must be a list of non-empty strings")
-    return ScanPolicy(
-        fail_on=str(data.get("fail_on", "high")),
-        max_file_size=int(data.get("max_file_size", 2 * 1024 * 1024)),
-        max_files=int(data.get("max_files", 10_000)),
-        excluded_dirs=frozenset(excluded),
-    )
+    return ScanPolicy.from_mapping(data)
