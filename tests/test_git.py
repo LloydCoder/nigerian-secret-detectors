@@ -21,7 +21,7 @@ def test_git_history_detects_and_correlates_secret_without_raw_value(tmp_path: P
     secret_file.unlink()
     _git(tmp_path, "add", "-A")
     _git(tmp_path, "commit", "-m", "remove synthetic credential")
-    findings = scan_history(tmp_path, fingerprint_key="history-key", max_commits=10)
+    findings = scan_history(tmp_path, fingerprint_key="history-key-0123456789abcdef", max_commits=10)
     assert findings
     assert any(item.path == "config.env" and item.change in {"A", "D"} for item in findings)
     assert all(item.fingerprint for item in findings)
