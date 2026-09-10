@@ -1,0 +1,14 @@
+.git
+.github
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+dist
+build
+coverage
+.venv
+venv
+benchmarks/*.json
+*.sarif
