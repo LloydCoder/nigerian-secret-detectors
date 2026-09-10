@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-from .providers import PROVIDERS, Provider
+from .providers import PROVIDERS, Provider, DetectionType
 from .rules import RULES, Rule
 
 
@@ -14,6 +14,7 @@ class DetectorMetadata:
     category: str
     severity: str
     description: str
+    detection_type: DetectionType
 
 
 class DetectorRegistry:
@@ -28,12 +29,15 @@ class DetectorRegistry:
         if len(ids) != len(set(ids)):
             raise ValueError("detector IDs must be unique")
         allowed_severities = {"low", "medium", "high", "critical"}
+        allowed_types = {"provider-specific", "provider-context", "generic", "cryptographic", "token", "heuristic"}
         known_providers = {provider.id for provider in PROVIDERS} | {"crypto", "nigerian-fintech"}
         for rule in self._rules:
             if not rule.id or not rule.provider or not rule.category:
                 raise ValueError("detectors require id, provider, and category")
             if rule.severity not in allowed_severities:
                 raise ValueError(f"unsupported severity: {rule.severity}")
+            if rule.detection_type not in allowed_types:
+                raise ValueError(f"unsupported detection type: {rule.detection_type}")
             if rule.provider not in known_providers:
                 raise ValueError(f"unknown provider: {rule.provider}")
         covered = {rule.provider for rule in self._rules}
@@ -65,6 +69,7 @@ class DetectorRegistry:
                 category=rule.category,
                 severity=rule.severity,
                 description=rule.message,
+                detection_type=rule.detection_type,
             )
             for rule in self._rules
         )
