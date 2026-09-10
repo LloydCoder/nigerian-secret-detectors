@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from nigerian_secrets.api import _policy_from_payload, _safe_target
+from nigerian_secrets.api import _policy_from_payload, _safe_target, serve
 from nigerian_secrets.policy import ScanPolicy
 from nigerian_secrets.scanner import scan
 
@@ -26,3 +26,11 @@ def test_scanner_file_limit_is_enforced(tmp_path: Path):
     for index in range(5):
         (tmp_path / f"{index}.txt").write_text("ordinary documentation", encoding="utf-8")
     assert scan(tmp_path, max_files=2) == []
+
+
+def test_remote_api_requires_authentication_and_tls(monkeypatch):
+    monkeypatch.setattr("nigerian_secrets.api.API_KEY", "configured")
+    monkeypatch.setattr("nigerian_secrets.api.TLS_CERTFILE", None)
+    monkeypatch.setattr("nigerian_secrets.api.TLS_KEYFILE", None)
+    with pytest.raises(RuntimeError, match="TLS"):
+        serve("0.0.0.0", 0)
