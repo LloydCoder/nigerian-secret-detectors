@@ -12,7 +12,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -47,3 +47,20 @@ jobs:
       - name: Container smoke test
         if: matrix.python-version == '3.13'
         run: docker run --rm --read-only --cap-drop=ALL nigerian-secret-detectors:ci . --format json --fail-on none
+      - name: Container vulnerability scan
+        if: matrix.python-version == '3.13'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: nigerian-secret-detectors:ci
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Container SBOM
+        if: matrix.python-version == '3.13'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: nigerian-secret-detectors:ci
+          format: cyclonedx
+          output: container-sbom.cdx.json
+          exit-code: '0'
