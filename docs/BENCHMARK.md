@@ -13,27 +13,10 @@ The benchmark is intentionally synthetic and deterministic. It is a regression, 
 
 ## Metrics
 
-The benchmark reports:
+The benchmark reports true positives, false positives, true negatives, false negatives, precision, recall, F1, elapsed time, files/second, and MB/second.
 
-- true positives
-- false positives
-- true negatives
-- false negatives
-- precision
-- recall
-- F1
-- elapsed time
-- files/second
-- MB/second
-
-The corpus version is the repository revision containing the seed catalog and benchmark implementation. Published numbers must include that revision and the benchmark tool version.
-
-## Interpretation
-
-A high score on this corpus means the current detector behavior is stable against the controlled fixtures. It does **not** establish production recall across arbitrary repositories, provider account populations, encodings, obfuscation techniques, or secret formats.
-
-Real-world validation requires legally obtained and appropriately sanitized data. Raw customer or production credentials must never be added to the corpus.
+A published result should include the repository revision and benchmark implementation version. The corpus is synthetic and must not be presented as a production recall estimate.
 
 ## Adversarial coverage
 
-Adversarial transformations are tracked separately from the core regression gate when they represent behavior the scanner is not designed to normalize, such as literal splitting, Unicode confusables, or encoded wrappers. A failure there is recorded as a capability gap rather than silently relabeled as a negative case.
+Adversarial transformations are tested separately when they represent behavior the scanner is not designed to normalize, such as literal splitting, Unicode escapes, URL encoding, and token truncation. A limitation is recorded as a capability gap rather than silently relabeled as a negative case.
