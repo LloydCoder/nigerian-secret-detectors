@@ -25,7 +25,8 @@ def _cases() -> list[tuple[str, str, bool]]:
             text = f'PAYSTACK_SECRET = "{BASE[:10]}\\n{BASE[10:]}"'
             expected = False
         elif mode == 4:
-            text = f'PAYSTACK_SECRET = "{BASE.replace("_", "\\u005f")}"'
+            encoded = BASE.replace("_", "\\u005f")
+            text = f'PAYSTACK_SECRET = "{encoded}"'
             expected = False
         elif mode == 5:
             text = f'PAYSTACK_SECRET = "{BASE.upper()}"'
