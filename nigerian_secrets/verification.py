@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, ClassVar
+
+VERIFICATION_STATUSES = frozenset({"valid", "invalid", "unknown", "unsupported", "rate_limited", "error"})
 
 
 @dataclass(frozen=True)
 class VerificationRequest:
     provider: str
     secret: str
+
+    def __post_init__(self) -> None:
+        if not self.provider or not self.secret:
+            raise ValueError("provider and secret are required")
 
 
 @dataclass(frozen=True)
@@ -16,9 +22,15 @@ class VerificationResult:
     status: str
     message: str
 
+    def __post_init__(self) -> None:
+        if self.status not in VERIFICATION_STATUSES:
+            raise ValueError(f"unsupported verification status: {self.status}")
+        if not self.provider:
+            raise ValueError("verification provider cannot be empty")
+
 
 class VerificationAdapter(Protocol):
-    provider: str
+    provider: ClassVar[str]
 
     def verify(self, request: VerificationRequest) -> VerificationResult:
         """Verify a credential using a provider-approved mechanism."""
@@ -65,5 +77,8 @@ def verify(request: VerificationRequest, *, enabled: bool = False) -> Verificati
         )
     adapter = VERIFIERS.get(request.provider)
     if adapter is None:
-        raise VerificationDisabled(f"No verification adapter is registered for {request.provider}")
-    return adapter.verify(request)
+        return VerificationResult(request.provider, "unsupported", "No verification adapter is registered.")
+    result = adapter.verify(request)
+    if result.provider != request.provider:
+        raise VerificationDisabled("verification adapter returned a mismatched provider")
+    return result
