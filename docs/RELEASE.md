@@ -18,3 +18,6 @@ Tagged releases publish the Python distribution, SBOM, and checksum manifest. Gi
 Current package version: `0.5.0`.
 
 Before publishing `0.5.0`, the final candidate must pass the complete CI/security/benchmark suite from a clean runner. A failed or stale workflow result must never be treated as release evidence.
+
+
+<!-- CI baseline revalidated after forensic remediation fixes. -->
