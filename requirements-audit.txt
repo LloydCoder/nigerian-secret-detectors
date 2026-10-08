@@ -1,0 +1,2 @@
+# Runtime dependency audit input for nigerian-secret-detectors.
+# The project declares no third-party runtime dependencies in pyproject.toml.
