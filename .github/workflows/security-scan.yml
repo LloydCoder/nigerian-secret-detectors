@@ -31,8 +31,7 @@ jobs:
         run: |
           rm -rf /tmp/nigerian-secret-scan
           mkdir -p /tmp/nigerian-secret-scan
-          find nigerian_secrets -type f -name '*.py' ! -name 'rules.py' ! -name 'registry.py' -exec cp --parents '{}' /tmp/nigerian-secret-scan/ \
-          ;
+          find nigerian_secrets -type f -name '*.py' ! -name 'rules.py' ! -name 'registry.py' -exec cp --parents '{}' /tmp/nigerian-secret-scan/ \;
       - name: Scan operational source
         run: nigerian-scan /tmp/nigerian-secret-scan --format sarif --fail-on high > nigerian-secret-results.sarif
       - name: Validate SARIF structure
