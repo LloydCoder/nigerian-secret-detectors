@@ -3,6 +3,7 @@ from __future__ import annotations
 import hmac
 import json
 import os
+import ssl
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -18,7 +19,9 @@ MAX_BODY = 64 * 1024
 RATE_LIMIT = 60
 RATE_WINDOW = 60.0
 MAX_RATE_CLIENTS = 4096
-API_KEY = os.environ.get("NIGERIAN_API_KEY")
+API_KEY = os.environ.get("NIGERIAN_API_KEY") or None
+TLS_CERTFILE = os.environ.get("NIGERIAN_TLS_CERTFILE")
+TLS_KEYFILE = os.environ.get("NIGERIAN_TLS_KEYFILE")
 _RATE_STATE: dict[str, list[float]] = {}
 
 
@@ -37,15 +40,7 @@ def _policy_from_payload(value: object) -> ScanPolicy:
         return ScanPolicy()
     if not isinstance(value, dict):
         raise ValueError("policy must be a JSON object")
-    excluded = value.get("excluded_dirs", list(ScanPolicy().excluded_dirs))
-    if not isinstance(excluded, list) or not all(isinstance(item, str) and item for item in excluded):
-        raise ValueError("excluded_dirs must be a list of non-empty strings")
-    return ScanPolicy(
-        fail_on=str(value.get("fail_on", "high")),
-        max_file_size=int(value.get("max_file_size", 2 * 1024 * 1024)),
-        max_files=int(value.get("max_files", 10_000)),
-        excluded_dirs=frozenset(excluded),
-    )
+    return ScanPolicy.from_mapping(value)
 
 
 def _allow_request(client: str) -> bool:
@@ -63,7 +58,7 @@ def _allow_request(client: str) -> bool:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "NigerianSecretsAPI/0.4"
+    server_version = "NigerianSecretsAPI/0.5"
 
     def setup(self) -> None:
         super().setup()
@@ -77,6 +72,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
+        if getattr(self.server, "tls_enabled", False):
+            self.send_header("Strict-Transport-Security", "max-age=31536000")
         self.end_headers()
         self.wfile.write(body)
 
@@ -98,7 +95,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         path = urlparse(self.path).path
         if path == "/healthz":
-            return self._write(200, {"status": "ok", "version": "0.4"})
+            return self._write(200, {"status": "ok", "version": "0.5"})
         if path == "/v1/providers":
             return self._write(200, {"providers": [p.id for p in PROVIDERS]})
         if path == "/v1/detectors":
@@ -120,7 +117,10 @@ class Handler(BaseHTTPRequestHandler):
             length = int(length_header)
             if length < 0 or length > MAX_BODY:
                 return self._write(413, {"error": "request_too_large"})
-            payload = json.loads(self.rfile.read(length) or b"{}")
+            raw = self.rfile.read(length)
+            if len(raw) != length:
+                return self._write(400, {"error": "incomplete_request_body"})
+            payload = json.loads(raw or b"{}")
             if not isinstance(payload, dict):
                 raise ValueError("request body must be a JSON object")
             target = payload.get("target")
@@ -134,8 +134,12 @@ class Handler(BaseHTTPRequestHandler):
                 max_files=policy.max_files,
             )
             return self._write(200, {"findings": [f.to_dict() for f in findings], "count": len(findings)})
-        except (TypeError, ValueError, OSError, json.JSONDecodeError, TimeoutError) as exc:
+        except json.JSONDecodeError:
+            return self._write(400, {"error": "invalid_json"})
+        except ValueError as exc:
             return self._write(400, {"error": str(exc)})
+        except (OSError, TimeoutError):
+            return self._write(400, {"error": "scan_failed"})
 
     def do_PUT(self) -> None:  # noqa: N802
         self._write(405, {"error": "method_not_allowed"})
@@ -151,10 +155,21 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def serve(host: str = "127.0.0.1", port: int = 8787) -> None:
-    if host not in {"127.0.0.1", "::1", "localhost"} and API_KEY is None:
-        raise RuntimeError("NIGERIAN_API_KEY is required when binding the API remotely")
+    loopback = host in {"127.0.0.1", "::1", "localhost"}
+    if not loopback:
+        if API_KEY is None:
+            raise RuntimeError("NIGERIAN_API_KEY is required when binding the API remotely")
+        if not TLS_CERTFILE or not TLS_KEYFILE:
+            raise RuntimeError("NIGERIAN_TLS_CERTFILE and NIGERIAN_TLS_KEYFILE are required for remote binding")
     server = ThreadingHTTPServer((host, port), Handler)
     server.daemon_threads = True
+    server.tls_enabled = False
+    if not loopback:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.load_cert_chain(TLS_CERTFILE, TLS_KEYFILE)
+        server.socket = context.wrap_socket(server.socket, server_side=True)
+        server.tls_enabled = True
     server.serve_forever()
 
 
