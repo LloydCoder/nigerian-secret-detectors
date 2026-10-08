@@ -53,8 +53,9 @@ jobs:
         with:
           image-ref: nigerian-secret-detectors:ci
           format: table
+          scanners: vuln
           severity: CRITICAL
-          ignore-unfixed: true
+          ignore-unfixed: false
           exit-code: '1'
       - name: Container SBOM
         if: matrix.python-version == '3.13'
