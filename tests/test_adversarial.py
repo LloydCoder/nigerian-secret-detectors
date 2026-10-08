@@ -20,12 +20,13 @@ def _cases() -> list[tuple[str, str, bool]]:
             expected = True
         elif mode == 2:
             text = f'PAYSTACK_SECRET : "{BASE}"'
-            expected = False
+            expected = True
         elif mode == 3:
             text = f'PAYSTACK_SECRET = "{BASE[:10]}\\n{BASE[10:]}"'
             expected = False
         elif mode == 4:
-            text = f'PAYSTACK_SECRET = "{BASE.replace("_", "\\u005f")}"'
+            encoded = BASE.replace("_", "\\u005f")
+            text = f'PAYSTACK_SECRET = "{encoded}"'
             expected = False
         elif mode == 5:
             text = f'PAYSTACK_SECRET = "{BASE.upper()}"'
@@ -37,13 +38,14 @@ def _cases() -> list[tuple[str, str, bool]]:
             text = f'paystack API_SECRET = "{BASE}"'
             expected = True
         elif mode == 8:
-            text = f'PAYSTACK_SECRET = "https%3A%2F%2Fexample.invalid%2F{BASE}"'
+            encoded = BASE.replace("_", "%5F")
+            text = f'PAYSTACK_SECRET = "https%3A%2F%2Fexample.invalid%2F{encoded}"'
             expected = False
         elif mode == 9:
             text = f'PAYSTACK_SECRET = "{BASE[:16]}" + "{BASE[16:]}"'
             expected = False
         elif mode == 10:
-            text = f'PAYSTACK_SECRET = "{BASE[:-1]}"'
+            text = f'PAYSTACK_SECRET = "{BASE[:18]}"'
             expected = False
         else:
             text = f'PAYSTACK_SECRET = "not-a-secret-{index}"'

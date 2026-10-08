@@ -18,10 +18,7 @@ def to_sarif(findings: Iterable[Finding]) -> dict:
                 "id": finding.detector_id,
                 "name": finding.detector_id,
                 "shortDescription": {"text": finding.message},
-                "properties": {
-                    "provider": finding.provider,
-                    "severity": finding.severity,
-                },
+                "properties": {"provider": finding.provider, "severity": finding.severity},
             },
         )
         results.append(
@@ -29,37 +26,12 @@ def to_sarif(findings: Iterable[Finding]) -> dict:
                 "ruleId": finding.detector_id,
                 "level": "error" if finding.severity in {"critical", "high"} else "warning",
                 "message": {"text": finding.message},
-                "locations": [
-                    {
-                        "physicalLocation": {
-                            "artifactLocation": {"uri": finding.path},
-                            "region": {
-                                "startLine": finding.line,
-                                "startColumn": finding.column,
-                            },
-                        }
-                    }
-                ],
-                "properties": {
-                    "confidence": finding.confidence,
-                    "provider": finding.provider,
-                    "redactedMatch": finding.redacted_match,
-                },
+                "locations": [{"physicalLocation": {"artifactLocation": {"uri": finding.path}, "region": {"startLine": finding.line, "startColumn": finding.column}}}],
+                "properties": {"confidence": finding.confidence, "provider": finding.provider, "redactedMatch": finding.redacted_match},
             }
         )
     return {
         "$schema": SARIF_SCHEMA,
         "version": SARIF_VERSION,
-        "runs": [
-            {
-                "tool": {
-                    "driver": {
-                        "name": "nigerian-secret-detectors",
-                        "version": "0.5.0",
-                        "rules": list(rules.values()),
-                    }
-                },
-                "results": results,
-            }
-        ],
+        "runs": [{"tool": {"driver": {"name": "nigerian-secret-detectors", "version": "0.5.0", "rules": list(rules.values())}}, "results": results}],
     }

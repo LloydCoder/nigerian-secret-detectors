@@ -4,12 +4,11 @@ from pathlib import Path
 import pytest
 
 from nigerian_secrets.fingerprint import fingerprint
-from nigerian_secrets.policy import ScanPolicy
+from nigerian_secrets.policy import MAX_ALLOWED_FILE_SIZE, MAX_ALLOWED_FILES, ScanPolicy
 from nigerian_secrets.registry import REGISTRY
 from nigerian_secrets.sarif import SARIF_SCHEMA, to_sarif
 from nigerian_secrets.scanner import scan
 from nigerian_secrets.verification import VerificationRequest, VerificationResult, verify
-
 
 SYNTHETIC = "sk_test_abcdefghijklmnopqrstuvwxyz123456"
 
@@ -36,11 +35,21 @@ def test_findings_are_deterministically_sorted(tmp_path: Path):
     assert [item.path for item in first] == sorted(item.path for item in first)
 
 
+def test_adjacent_provider_context_is_used(tmp_path: Path):
+    (tmp_path / "anchor.py").write_text('# anchor integration\nAPI_KEY = "abcdefghijklmnopqrstuvwxyz1234567890"\n', encoding="utf-8")
+    findings = scan(tmp_path)
+    assert any(item.provider == "anchor" for item in findings)
+
+
 def test_policy_semantics_are_shared():
-    policy = ScanPolicy.from_mapping({"fail_on": "medium", "max_files": 20, "excluded_dirs": [".git"]})
+    policy = ScanPolicy.from_mapping({"max_files": 42, "max_file_size": 4096, "fail_on": "medium", "excluded_dirs": [".git"]})
     assert policy.fail_on == "medium"
-    assert policy.max_files == 20
+    assert policy.max_files == 42
     assert policy.should_fail([type("F", (), {"severity": "high"})()])
+    with pytest.raises(ValueError):
+        ScanPolicy(max_file_size=MAX_ALLOWED_FILE_SIZE + 1)
+    with pytest.raises(ValueError):
+        ScanPolicy(max_files=MAX_ALLOWED_FILES + 1)
 
 
 def test_detector_metadata_exposes_detection_type():
@@ -50,8 +59,10 @@ def test_detector_metadata_exposes_detection_type():
 
 
 def test_fingerprint_is_keyed_and_stable():
-    assert fingerprint(SYNTHETIC, "test-key") == fingerprint(SYNTHETIC, "test-key")
-    assert fingerprint(SYNTHETIC, "test-key") != fingerprint(SYNTHETIC, "other-key")
+    assert fingerprint(SYNTHETIC, "test-key-0123456789abcdef") == fingerprint(SYNTHETIC, "test-key-0123456789abcdef")
+    assert fingerprint(SYNTHETIC, "test-key-0123456789abcdef") != fingerprint(SYNTHETIC, "other-key-0123456789abcdef")
+    with pytest.raises(ValueError):
+        fingerprint(SYNTHETIC, "too-short")
 
 
 def test_verification_unknown_is_not_invalid():
@@ -72,5 +83,4 @@ def test_sarif_is_versioned_and_redacted(tmp_path: Path):
     payload = to_sarif(scan(tmp_path))
     assert payload["version"] == "2.1.0"
     assert payload["$schema"] == SARIF_SCHEMA
-    rendered = json.dumps(payload)
-    assert SYNTHETIC not in rendered
+    assert SYNTHETIC not in json.dumps(payload)
