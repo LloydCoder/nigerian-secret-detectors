@@ -31,17 +31,7 @@ class GitFinding:
 
 def _run(repo: Path, args: list[str], timeout: int = 20) -> str:
     try:
-        result = subprocess.run(
-            ["git", *args],
-            cwd=repo,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout,
-            check=False,
-        )
+        result = subprocess.run(["git", *args], cwd=repo, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise RuntimeError("git command failed or timed out") from exc
     if result.returncode != 0:
@@ -52,13 +42,11 @@ def _run(repo: Path, args: list[str], timeout: int = 20) -> str:
 def _commits(repo: Path, max_commits: int) -> list[str]:
     if max_commits <= 0:
         raise ValueError("max_commits must be positive")
-    output = _run(repo, ["rev-list", "--all", "--max-count", str(max_commits)])
-    return [line.strip() for line in output.splitlines() if line.strip()]
+    return [line.strip() for line in _run(repo, ["rev-list", "--all", "--max-count", str(max_commits)]).splitlines() if line.strip()]
 
 
 def _parent(repo: Path, commit: str) -> str | None:
-    output = _run(repo, ["rev-list", "--parents", "-n", "1", commit])
-    parts = output.split()
+    parts = _run(repo, ["rev-list", "--parents", "-n", "1", commit]).split()
     return parts[1] if len(parts) > 1 else None
 
 
@@ -81,14 +69,7 @@ def _changed_paths(repo: Path, commit: str, max_files: int) -> list[tuple[str, s
 
 def _blob_text(repo: Path, revision: str, path: str) -> str | None:
     try:
-        raw = subprocess.run(
-            ["git", "show", f"{revision}:{path}"],
-            cwd=repo,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            timeout=20,
-            check=False,
-        )
+        raw = subprocess.run(["git", "show", f"{revision}:{path}"], cwd=repo, stdin=subprocess.DEVNULL, capture_output=True, timeout=20, check=False)
     except (OSError, subprocess.TimeoutExpired):
         return None
     if raw.returncode != 0 or b"\x00" in raw.stdout:
@@ -96,20 +77,12 @@ def _blob_text(repo: Path, revision: str, path: str) -> str | None:
     return raw.stdout.decode("utf-8", errors="ignore")
 
 
-def scan_history(
-    repository: str | Path,
-    *,
-    fingerprint_key: bytes | str,
-    max_commits: int = DEFAULT_MAX_COMMITS,
-    max_files_per_commit: int = DEFAULT_MAX_FILES_PER_COMMIT,
-) -> list[GitFinding]:
-    """Scan changed Git blobs across reachable history without storing raw secrets."""
+def scan_history(repository: str | Path, *, fingerprint_key: bytes | str, max_commits: int = DEFAULT_MAX_COMMITS, max_files_per_commit: int = DEFAULT_MAX_FILES_PER_COMMIT) -> list[GitFinding]:
     repo = Path(repository).expanduser().resolve()
     if not (repo / ".git").exists():
         raise ValueError("repository must contain a .git directory")
     if not fingerprint_key:
         raise ValueError("fingerprint_key is required for history correlation")
-
     findings: list[GitFinding] = []
     for commit in _commits(repo, max_commits):
         parent = _parent(repo, commit)
@@ -122,23 +95,5 @@ def scan_history(
             for finding in scan_text(text, display_path=path, fingerprint_key=fingerprint_key):
                 if finding.fingerprint is None:
                     continue
-                findings.append(
-                    GitFinding(
-                        commit=commit,
-                        parent=parent,
-                        change=change,
-                        path=path,
-                        detector_id=finding.detector_id,
-                        provider=finding.provider,
-                        severity=finding.severity,
-                        confidence=finding.confidence,
-                        line=finding.line,
-                        column=finding.column,
-                        redacted_match=finding.redacted_match,
-                        fingerprint=finding.fingerprint,
-                    )
-                )
-    return sorted(
-        findings,
-        key=lambda item: (item.fingerprint, item.commit, item.path, item.line, item.column, item.detector_id),
-    )
+                findings.append(GitFinding(commit, parent, change, path, finding.detector_id, finding.provider, finding.severity, finding.confidence, finding.line, finding.column, finding.redacted_match, finding.fingerprint))
+    return sorted(findings, key=lambda item: (item.fingerprint, item.commit, item.path, item.line, item.column, item.detector_id))
