@@ -1,18 +1,20 @@
 [build-system]
-requires = ["setuptools>=75"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "lloydcoder-nigerian-secrets"
-version = "0.4.0"
+version = "0.5.0"
 description = "Provider-aware Nigerian fintech and crypto secret detection engine"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{name = "LloydCoder"}]
-license = "MIT"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 
 [project.scripts]
 nigerian-scan = "nigerian_secrets.cli:main"
+nigerian-git-scan = "nigerian_secrets.git_cli:main"
 nigerian-secrets-api = "nigerian_secrets.api:serve"
 
 [tool.setuptools.packages.find]
