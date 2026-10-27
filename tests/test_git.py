@@ -1,6 +1,8 @@
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from nigerian_secrets.git import scan_history
 
 SYNTHETIC = "sk_test_abcdefghijklmnopqrstuvwxyz123456"
@@ -26,3 +28,14 @@ def test_git_history_detects_and_correlates_secret_without_raw_value(tmp_path: P
     assert any(item.path == "config.env" and item.change in {"A", "D"} for item in findings)
     assert all(item.fingerprint for item in findings)
     assert all(SYNTHETIC not in str(item.to_dict()) for item in findings)
+
+
+@pytest.mark.parametrize("limit", [0, -1])
+def test_git_history_requires_positive_file_limit(tmp_path: Path, limit: int):
+    _git(tmp_path, "init")
+    with pytest.raises(ValueError, match="max_files_per_commit must be positive"):
+        scan_history(
+            tmp_path,
+            fingerprint_key="history-key-0123456789abcdef",
+            max_files_per_commit=limit,
+        )
