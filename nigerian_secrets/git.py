@@ -83,6 +83,8 @@ def scan_history(repository: str | Path, *, fingerprint_key: bytes | str, max_co
         raise ValueError("repository must contain a .git directory")
     if not fingerprint_key:
         raise ValueError("fingerprint_key is required for history correlation")
+    if max_files_per_commit <= 0:
+        raise ValueError("max_files_per_commit must be positive")
     findings: list[GitFinding] = []
     for commit in _commits(repo, max_commits):
         parent = _parent(repo, commit)
